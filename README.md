@@ -31,6 +31,8 @@ Escolha um perfil mínimo (ou o perfil Hyprland), crie seu usuário com `sudo` e
 curl -fsSL https://raw.githubusercontent.com/danasdev/rice-entropy/main/bootstrap.sh | bash
 ```
 
+> **Abriu direto no Hyprland e não achou o TTY?** Dá para rodar tudo por dentro: abra um terminal (no Hyprland puro o atalho é `Super+Q`) e use o comando acima. Se preferir um TTY, é `Ctrl+Alt+F3` (de F2 a F6); `Ctrl+Alt+F1` ou `F2` volta para a tela gráfica. Rodando por dentro, depois do `setup-plugins.sh` saia e entre de novo no Hyprland (ou reinicie) para a rice subir inteira.
+
 ### Opção B: sistema Arch que já existe
 
 O mesmo comando do `bootstrap.sh` serve: ele instala o `git` se faltar, clona o repositório em `~/rice-entropy` e roda o instalador.
