@@ -58,6 +58,15 @@ Ele compila o plugin hyprglass pelo `hyprpm`, gera o tema de ícones com a palet
 
 O `yay` não vem pelo archinstall. Para apps do AUR depois: `git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si`. Nenhum pacote do AUR é obrigatório para a rice.
 
+## Se abrir o Hyprland padrão mesmo depois de instalar
+
+O Hyprland escolhe **na abertura** qual configuração usar e dá prioridade a um `~/.config/hypr/hyprland.lua` sobre o `hyprland.conf` da rice. Se existir um `.lua` (algumas versões o geram na primeira execução), a rice é ignorada. Renomeie e **reabra a sessão** (`hyprctl reload` não basta, porque ele continua procurando o `.lua`):
+
+```bash
+mv ~/.config/hypr/hyprland.lua ~/.config/hypr/hyprland.lua.bak
+hyprctl dispatch exit    # ou reinicie
+```
+
 ## Depois de instalar
 
 - **Monitores:** edite `~/.config/hypr/rice/monitors.conf` (use `hyprctl monitors`). Há um exemplo de duas telas em `monitors.exemplo-autor.conf`. Nos widgets de `~/.config/noctalia/config.toml`, troque os `output = "..."` pelos nomes dos seus monitores.

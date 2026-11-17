@@ -85,6 +85,12 @@ xdg-user-dirs-update || true
 [ -f "$HOME/.config/entropy-name" ] || printf '%s\n' "$(getent passwd "$USER" | cut -d: -f5 | cut -d, -f1 | awk '{print $1}')" > "$HOME/.config/entropy-name"
 [ -s "$HOME/.config/entropy-name" ] || printf '%s\n' "${USER^}" > "$HOME/.config/entropy-name"
 
+# o Hyprland dá prioridade a um hyprland.lua; se existir, ele ignora o hyprland.conf da rice
+if [ -f "$HOME/.config/hypr/hyprland.lua" ]; then
+  mv "$HOME/.config/hypr/hyprland.lua" "$HOME/.config/hypr/hyprland.lua.bak-rice"
+  echo "aviso: havia um hyprland.lua (renomeado para hyprland.lua.bak-rice). Saia e entre de novo no Hyprland."
+fi
+
 if [ -f "$HOME/.config/hypr/rice/binds.conf" ]; then
   echo "OK: configuração da rice instalada em ~/.config/hypr"
 else
