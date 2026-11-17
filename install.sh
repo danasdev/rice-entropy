@@ -8,8 +8,24 @@ say() { printf '\n\033[1;35m==> %s\033[0m\n' "$*"; }
 [ "$EUID" -ne 0 ] || { echo "Não rode como root. Rode como o seu usuário."; exit 1; }
 command -v pacman >/dev/null || { echo "Este instalador é só para Arch Linux."; exit 1; }
 
+say "Verificando o sudo"
+if ! sudo -v; then
+  echo "ERRO: seu usuário não consegue usar sudo. Entre como root e rode: usermod -aG wheel SEU_USUARIO"
+  echo "e habilite o grupo wheel no sudoers (EDITOR=nano visudo, descomente a linha '%wheel ALL=(ALL:ALL) ALL')."
+  exit 1
+fi
+
 say "Pacotes oficiais"
-grep -vE '^\s*(#|$)' "$REPO/packages/pacman.txt" | sudo pacman -S --needed --noconfirm -
+PKGS="$(grep -vE '^\s*(#|$)' "$REPO/packages/pacman.txt")"
+sudo pacman -Sy --noconfirm >/dev/null 2>&1 || true
+if ! printf '%s\n' "$PKGS" | sudo pacman -S --needed --noconfirm -; then
+  echo "Instalação em lote falhou; tentando pacote por pacote para não travar a rice..."
+  FAILED=()
+  while read -r pkg; do
+    sudo pacman -S --needed --noconfirm "$pkg" || FAILED+=("$pkg")
+  done <<< "$PKGS"
+  [ "${#FAILED[@]}" -eq 0 ] || echo "ATENÇÃO: não instalou: ${FAILED[*]}"
+fi
 
 say "Serviços"
 sudo systemctl enable --now NetworkManager bluetooth power-profiles-daemon upower || true
@@ -68,6 +84,13 @@ say "Pasta de usuário e nome na saudação do painel"
 xdg-user-dirs-update || true
 [ -f "$HOME/.config/entropy-name" ] || printf '%s\n' "$(getent passwd "$USER" | cut -d: -f5 | cut -d, -f1 | awk '{print $1}')" > "$HOME/.config/entropy-name"
 [ -s "$HOME/.config/entropy-name" ] || printf '%s\n' "${USER^}" > "$HOME/.config/entropy-name"
+
+if [ -f "$HOME/.config/hypr/rice/binds.conf" ]; then
+  echo "OK: configuração da rice instalada em ~/.config/hypr"
+else
+  echo "ERRO: a configuração não foi copiada. Rode de novo: $REPO/install.sh 2>&1 | tee ~/install.log"
+  exit 1
+fi
 
 cat <<EOF
 
