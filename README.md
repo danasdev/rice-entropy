@@ -67,6 +67,18 @@ mv ~/.config/hypr/hyprland.lua ~/.config/hypr/hyprland.lua.bak
 pkill -x Hyprland        # ou reinicie (em modo Lua o `hyprctl dispatch exit` não funciona)
 ```
 
+## Hyprland novo demais (erro "lua config error" / `unexpected symbol near '#'`)
+
+A rice é escrita em `hyprland.conf` (hyprlang). A partir do Hyprland 0.55 o formato principal é `hyprland.lua` e, segundo relatos, a 0.57 removeu o `.conf`. Nessas versões o Hyprland gera um `hyprland.lua` sozinho a cada abertura, e forçar o `.conf` faz ele ler o arquivo como Lua (erro no `#` da linha 2). O `install.sh` já detecta isso e chama o script abaixo, mas dá para rodar à mão (num TTY, `Ctrl+Alt+F3`):
+
+```bash
+~/rice-entropy/tools/pin-hyprland.sh --dry-run   # mostra as versões que vai usar
+~/rice-entropy/tools/pin-hyprland.sh             # instala a última 0.54.x e trava em IgnorePkg
+~/rice-entropy/tools/pin-hyprland.sh 0.54.2      # ou uma versão específica
+```
+
+Ele baixa do Arch Linux Archive o `hyprland` e as libs irmãs (`hyprutils`, `hyprlang`, `aquamarine`...) da mesma época, instala com `pacman -U`, coloca todos em `IgnorePkg` (o `pacman -Syu` não os atualiza) e renomeia o `hyprland.lua`. Para destravar no futuro, remova esses pacotes de `IgnorePkg` em `/etc/pacman.conf`.
+
 ## Depois de instalar
 
 - **Monitores:** edite `~/.config/hypr/rice/monitors.conf` (use `hyprctl monitors`). Há um exemplo de duas telas em `monitors.exemplo-autor.conf`. Nos widgets de `~/.config/noctalia/config.toml`, troque os `output = "..."` pelos nomes dos seus monitores.

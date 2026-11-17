@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# Fixa o Hyprland (e as libs irmãs) numa versão que ainda lê hyprland.conf (hyprlang).
+# A partir da 0.55 o Hyprland passou a usar hyprland.lua e, segundo relatos, a 0.57 removeu o .conf.
+# A rice é escrita em hyprlang, então este script instala a última versão ANTES da 0.55
+# a partir do Arch Linux Archive e põe os pacotes em IgnorePkg (para o pacman -Syu não atualizar).
+#
+# Uso:  tools/pin-hyprland.sh            # usa a última 0.54.x
+#       tools/pin-hyprland.sh 0.54.2     # força uma versão exata do hyprland
+#       tools/pin-hyprland.sh --dry-run  # só mostra o que faria
+set -euo pipefail
+
+ARCHIVE="https://archive.archlinux.org/packages"
+# Libs que precisam ser da mesma época do hyprland (só as que estiverem instaladas são trocadas).
+LIBS=(hyprutils hyprlang hyprcursor hyprgraphics aquamarine hyprland-protocols hyprwayland-scanner hyprwire xdg-desktop-portal-hyprland hyprland-qt-support hyprland-qtutils hyprpolkitagent hyprlock hypridle)
+say() { printf '\n\033[1;35m==> %s\033[0m\n' "$*"; }
+die() { echo "ERRO: $*" >&2; exit 1; }
+
+DRY=0; WANT=""
+for a in "$@"; do
+  case "$a" in
+    --dry-run) DRY=1 ;;
+    [0-9]*) WANT="$a" ;;
+    *) die "argumento desconhecido: $a" ;;
+  esac
+done
+
+[ "$EUID" -ne 0 ] || die "Rode como o seu usuário (usa sudo)."
+command -v pacman >/dev/null || die "Só para Arch Linux."
+command -v curl >/dev/null || sudo pacman -S --needed --noconfirm curl
+
+# Lista "arquivo<TAB>epoch" dos pacotes x86_64 de um nome no archive.
+list_pkg() {
+  local name="$1" first="${1:0:1}"
+  curl -fsS "$ARCHIVE/$first/$name/" |
+    sed -nE "s/.*href=\"($name-[0-9][^\"]*-(x86_64|any)\.pkg\.tar\.zst)\".*([0-9]{2}-[A-Za-z]{3}-[0-9]{4} [0-9]{2}:[0-9]{2}).*/\1\t\3/p" |
+    while IFS=$'\t' read -r f d; do printf '%s\t%s\n' "$f" "$(date -u -d "${d//-/ }" +%s)"; done
+}
+ver_of() { sed -E "s/^$1-(.*)-(x86_64|any)\.pkg\.tar\.zst$/\1/" <<<"$2"; }
+
+say "Procurando o hyprland no Arch Linux Archive"
+mapfile -t HL < <(list_pkg hyprland | sort -t$'\t' -k1,1V)
+[ "${#HL[@]}" -gt 0 ] || die "não consegui listar $ARCHIVE/h/hyprland/ (sem rede ou o host está bloqueado)."
+
+PICK=""
+for line in "${HL[@]}"; do
+  f="${line%%$'\t'*}"; v="$(ver_of hyprland "$f")"; vv="${v%-*}"
+  if [ -n "$WANT" ]; then
+    [[ "$vv" == "$WANT" ]] && PICK="$line"
+  else
+    # última versão < 0.55
+    if [[ "$vv" =~ ^0\.([0-9]+)\. ]] && [ "${BASH_REMATCH[1]}" -lt 55 ]; then PICK="$line"; fi
+  fi
+done
+[ -n "$PICK" ] || die "nenhuma versão adequada do hyprland encontrada${WANT:+ ($WANT)}."
+HFILE="${PICK%%$'\t'*}"; HTIME="${PICK##*$'\t'}"
+echo "hyprland alvo: $HFILE ($(date -u -d @"$HTIME" +%F))"
+
+TARGETS=("hyprland|$HFILE")
+for lib in "${LIBS[@]}"; do
+  pacman -Qq "$lib" >/dev/null 2>&1 || continue
+  # versão mais nova do pacote que ainda era a atual na data do hyprland alvo
+  best=""
+  while IFS=$'\t' read -r f t; do
+    [ "$t" -le "$HTIME" ] && best="$f"
+  done < <(list_pkg "$lib" | sort -t$'\t' -k2,2n)
+  [ -n "$best" ] || { echo "aviso: sem versão antiga de $lib; mantendo a atual."; continue; }
+  echo "$lib -> $best"
+  TARGETS+=("$lib|$best")
+done
+
+if [ "$DRY" -eq 1 ]; then echo; echo "(dry-run: nada foi instalado)"; exit 0; fi
+
+say "Baixando"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+FILES=(); NAMES=()
+for t in "${TARGETS[@]}"; do
+  name="${t%%|*}"; f="${t##*|}"
+  curl -fL --progress-bar -o "$TMP/$f" "$ARCHIVE/${name:0:1}/$name/$f"
+  FILES+=("$TMP/$f"); NAMES+=("$name")
+done
+
+say "Instalando (downgrade)"
+sudo pacman -U --noconfirm "${FILES[@]}" ||
+  die "o pacman recusou o conjunto. Rode com --dry-run, confira as versões e, se preciso, passe outra versão do hyprland (ex.: tools/pin-hyprland.sh 0.54.0)."
+
+say "Travando as versões (IgnorePkg)"
+CUR="$(grep -E '^\s*IgnorePkg' /etc/pacman.conf || true)"
+ADD=()
+for n in "${NAMES[@]}"; do grep -qE "^\s*IgnorePkg.*\b$n\b" /etc/pacman.conf || ADD+=("$n"); done
+if [ "${#ADD[@]}" -gt 0 ]; then
+  if [ -n "$CUR" ]; then
+    sudo sed -i -E "s|^\s*(IgnorePkg\s*=.*)$|\1 ${ADD[*]}|" /etc/pacman.conf
+  else
+    sudo sed -i -E "/^\[options\]/a IgnorePkg = ${ADD[*]}" /etc/pacman.conf
+  fi
+fi
+
+# O Hyprland novo cria um hyprland.lua sozinho; com ele a rice (hyprland.conf) é ignorada.
+if [ -f "$HOME/.config/hypr/hyprland.lua" ]; then
+  mv "$HOME/.config/hypr/hyprland.lua" "$HOME/.config/hypr/hyprland.lua.bak-rice"
+  echo "hyprland.lua renomeado para hyprland.lua.bak-rice"
+fi
+
+echo
+echo "Pronto: $(pacman -Q hyprland). Reinicie (ou: pkill -x Hyprland) e entre de novo no Hyprland."
+echo "Para destravar no futuro: remova esses pacotes de IgnorePkg em /etc/pacman.conf."

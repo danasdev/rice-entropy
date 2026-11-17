@@ -27,6 +27,14 @@ if ! printf '%s\n' "$PKGS" | sudo pacman -S --needed --noconfirm -; then
   [ "${#FAILED[@]}" -eq 0 ] || echo "ATENÇÃO: não instalou: ${FAILED[*]}"
 fi
 
+# A rice usa hyprlang (hyprland.conf). O Hyprland >= 0.55 prefere hyprland.lua e o 0.57 removeu o .conf.
+HV="$(pacman -Q hyprland 2>/dev/null | awk '{print $2}')"
+if [[ "$HV" =~ ^0\.([0-9]+)\. ]] && [ "${BASH_REMATCH[1]}" -ge 55 ]; then
+  say "Hyprland $HV é novo demais para os .conf da rice"
+  echo "Vou fixar uma versão antiga (0.54.x) a partir do Arch Linux Archive."
+  "$REPO/tools/pin-hyprland.sh" || echo "ATENÇÃO: não deu para fixar o Hyprland. Rode depois: $REPO/tools/pin-hyprland.sh"
+fi
+
 say "Serviços"
 sudo systemctl enable --now NetworkManager bluetooth power-profiles-daemon upower || true
 
