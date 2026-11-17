@@ -11,7 +11,7 @@ set -euo pipefail
 
 ARCHIVE="https://archive.archlinux.org/packages"
 # Libs que precisam ser da mesma época do hyprland (só as que estiverem instaladas são trocadas).
-LIBS=(hyprutils hyprlang hyprcursor hyprgraphics aquamarine hyprland-protocols hyprwayland-scanner hyprwire xdg-desktop-portal-hyprland hyprland-qt-support hyprland-qtutils hyprpolkitagent hyprlock hypridle)
+LIBS=(hyprutils hyprlang hyprcursor hyprgraphics aquamarine hyprland-protocols hyprwayland-scanner hyprwire xdg-desktop-portal-hyprland hyprland-qt-support hyprland-qtutils hyprpolkitagent hyprlock hypridle libjxl highway)
 say() { printf '\n\033[1;35m==> %s\033[0m\n' "$*"; }
 die() { echo "ERRO: $*" >&2; exit 1; }
 
@@ -54,6 +54,16 @@ done
 [ -n "$PICK" ] || die "nenhuma versão adequada do hyprland encontrada${WANT:+ ($WANT)}."
 HFILE="${PICK%%$'\t'*}"; HTIME="${PICK##*$'\t'}"
 echo "hyprland alvo: $HFILE ($(date -u -d @"$HTIME" +%F))"
+
+# libs do sistema (ex.: libjxl) que o hyprgraphics antigo exige numa versão mais velha: os pacotes
+# instalados que dependem delas precisam voltar junto, senão o pacman recusa o conjunto.
+for base in libjxl highway; do
+  pacman -Qq "$base" >/dev/null 2>&1 || continue
+  for r in $(LC_ALL=C pacman -Qi "$base" | awk -F': ' '/^Required By/{print $2}'); do
+    [ "$r" = None ] && continue
+    case " ${LIBS[*]} " in *" $r "*) ;; *) LIBS+=("$r") ;; esac
+  done
+done
 
 TARGETS=("hyprland|$HFILE")
 for lib in "${LIBS[@]}"; do
