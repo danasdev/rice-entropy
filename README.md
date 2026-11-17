@@ -15,33 +15,46 @@ Uma rice para **Arch Linux + Hyprland** baseada no shell [Noctalia](https://gith
 
 ## Instalação (Arch)
 
-No `archinstall`, escolha um perfil mínimo (ou o perfil Hyprland), crie seu usuário com `sudo`, ative o `multilib` se for usar Steam e deixe estes pacotes em "Additional packages": `git base-devel`. O resto o instalador cuida.
+A instalação tem **duas fases**: a do sistema (pacotes e arquivos) e a de dentro do Hyprland (plugin de vidro e ícones), porque o `hyprpm` só funciona com o Hyprland rodando.
 
-Depois do primeiro boot, no TTY:
+### Opção A: já no archinstall (recomendada)
 
-```bash
-git clone https://github.com/danasdev/rice-entropy.git
-cd rice-entropy
-./install.sh
-```
-
-Reinicie, entre no Hyprland e, dentro dele:
+Na live ISO, com internet, rode o archinstall apontando para a lista de pacotes deste repositório. Ele instala tudo junto com o sistema e continua perguntando disco, usuário, idioma e o resto normalmente:
 
 ```bash
-./setup-plugins.sh
+archinstall --config-url https://raw.githubusercontent.com/danasdev/rice-entropy/main/archinstall.json
 ```
 
-O `install.sh` instala os pacotes de `packages/pacman.txt`, ativa os serviços (NetworkManager, bluetooth, power-profiles-daemon, upower), faz **backup** de `~/.config/{hypr,kitty,noctalia}` antes de copiar as configs e coloca um papel de parede padrão. O `setup-plugins.sh` compila o hyprglass pelo `hyprpm` (precisa estar dentro do Hyprland) e gera o tema de ícones.
+Escolha um perfil mínimo (ou o perfil Hyprland), crie seu usuário com `sudo` e instale. Depois do primeiro boot, no TTY:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/danasdev/rice-entropy/main/bootstrap.sh | bash
+```
+
+### Opção B: sistema Arch que já existe
+
+O mesmo comando do `bootstrap.sh` serve: ele instala o `git` se faltar, clona o repositório em `~/rice-entropy` e roda o instalador.
+
+### O que o instalador faz
+
+1. Instala os pacotes de `packages/pacman.txt` (`--needed`, então o que já veio do archinstall é ignorado).
+2. Ativa os serviços: NetworkManager, bluetooth, power-profiles-daemon e upower.
+3. Faz **backup** de `~/.config/{hypr,kitty,noctalia}` em `~/.config-backup-rice-<data>` e copia as configs do repositório, trocando o marcador `@HOME@` pelo seu diretório.
+4. Coloca um papel de parede padrão em `~/Pictures/Wallpapers` e grava seu nome para a saudação do painel.
+
+### Fase dentro do Hyprland
+
+Reinicie, entre no Hyprland (escolha "Hyprland" no login ou rode `Hyprland` no TTY) e, em um terminal (`Super+Enter`):
+
+```bash
+~/rice-entropy/setup-plugins.sh
+```
+
+Ele compila o plugin hyprglass pelo `hyprpm`, gera o tema de ícones com a paleta do papel de parede e recarrega a sessão.
 
 ### AUR (opcional)
 
-O `yay` não vem pelo archinstall. Para instalar apps do AUR depois:
-
-```bash
-git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si
-```
-
-Nenhum pacote do AUR é obrigatório para a rice.
+O `yay` não vem pelo archinstall. Para apps do AUR depois: `git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si`. Nenhum pacote do AUR é obrigatório para a rice.
 
 ## Depois de instalar
 
@@ -79,7 +92,7 @@ A animação de abrir/fechar janelas (fade e "sucção") e o papel de parede ani
 Quem mantém a rice exporta do sistema para o repositório, já sem dados pessoais:
 
 ```bash
-python3 tools/export.py
+python3 tools/export.py   # também regenera o archinstall.json a partir de packages/pacman.txt
 git add -A && git commit -m "atualiza a rice" && git push
 ```
 

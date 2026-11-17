@@ -116,6 +116,8 @@ def main():
         "# Exemplo de duas telas com escala: veja monitors.exemplo-autor.conf\n"
         "monitor = , preferred, auto, 1\n")
     print("exportado para", OUT)
+    import subprocess
+    subprocess.run([sys.executable, os.path.join(REPO, "tools", "gen-archinstall.py")], check=False)
 
 
 if __name__ == "__main__":
