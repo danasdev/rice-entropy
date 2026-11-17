@@ -68,6 +68,8 @@ if [ "$SNAP" -eq 1 ]; then
   read -r -p "Continuar? [s/N] " ans; [[ "$ans" =~ ^[sSyY]$ ]] || die "cancelado."
   sudo cp -n /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak-rice
   printf 'Server = %s\n' "$SERVER" | sudo tee /etc/pacman.d/mirrorlist >/dev/null
+  # o archive é lento: sem isso o pacman desiste de um arquivo por timeout
+  grep -qE '^\s*DisableDownloadTimeout' /etc/pacman.conf || sudo sed -i '/^\[options\]/a DisableDownloadTimeout' /etc/pacman.conf
   sudo pacman -Syyuu || die "o pacman falhou. Para desfazer: sudo cp /etc/pacman.d/mirrorlist.bak-rice /etc/pacman.d/mirrorlist"
   INST="$(pacman -Q hyprland | awk '{print $2}')"
   echo "hyprland instalado: $INST"
