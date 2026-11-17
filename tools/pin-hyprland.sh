@@ -71,7 +71,14 @@ if [ "$SNAP" -eq 1 ]; then
   # o archive é lento: sem isso o pacman desiste de um arquivo por timeout
   grep -qE '^\s*DisableDownloadTimeout' /etc/pacman.conf || sudo sed -i '/^\[options\]/a DisableDownloadTimeout' /etc/pacman.conf
   # o linux-firmware foi dividido em pacotes diferentes ao longo do tempo: deixa sobrescrever só o firmware
-  sudo pacman -Syyuu --overwrite '/usr/lib/firmware/*' || die "o pacman falhou. Para desfazer: sudo cp /etc/pacman.d/mirrorlist.bak-rice /etc/pacman.d/mirrorlist"
+  # além do firmware: libs do openssl (hoje no pacote openssl-3) e hyprpm (hoje pacote separado)
+  OW=(--overwrite '/usr/lib/firmware/*'
+      --overwrite /usr/lib/libcrypto.so.3 --overwrite /usr/lib/libssl.so.3
+      --overwrite /usr/bin/hyprpm
+      --overwrite /usr/share/bash-completion/completions/hyprpm
+      --overwrite /usr/share/fish/vendor_completions.d/hyprpm.fish
+      --overwrite /usr/share/zsh/site-functions/_hyprpm)
+  sudo pacman -Syyuu "${OW[@]}" || die "o pacman falhou. Para desfazer: sudo cp /etc/pacman.d/mirrorlist.bak-rice /etc/pacman.d/mirrorlist"
   INST="$(pacman -Q hyprland | awk '{print $2}')"
   echo "hyprland instalado: $INST"
   if [[ "$INST" =~ ^0\.([0-9]+)\. ]] && [ "${BASH_REMATCH[1]}" -ge 55 ]; then
