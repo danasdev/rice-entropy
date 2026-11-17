@@ -1,0 +1,10 @@
+#!/bin/bash
+# uso: entropy-cc-toggle [monitor] [pagina]  — o painel fica residente; isto só pede para abrir/fechar
+RT="${XDG_RUNTIME_DIR:-/tmp}"
+echo "$1" > "$RT/entropy-cc.mon"
+echo "$2" > "$RT/entropy-cc.page"
+if [ -f "$RT/entropy-cc.pid" ] && kill -0 "$(cat "$RT/entropy-cc.pid")" 2>/dev/null; then
+  kill -USR1 "$(cat "$RT/entropy-cc.pid")"
+else
+  setsid python3 "$HOME/.config/hypr/rice/painel/entropy-cc.py" --daemon --open >>/tmp/entropy-cc.log 2>&1 &
+fi

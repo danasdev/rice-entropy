@@ -1,0 +1,80 @@
+# Pacotes oficiais (repositórios core/extra) usados pela rice. Linhas com # são comentários.
+
+# base de compilação (o hyprpm compila o plugin hyprglass)
+git
+base-devel
+cmake
+meson
+ninja
+cpio
+pkgconf
+python
+
+# Hyprland e sessão
+hyprland
+hyprpm
+hyprlock
+hypridle
+hyprpolkitagent
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+polkit
+gnome-keyring
+qt5-wayland
+qt6-wayland
+qt6ct
+xdg-utils
+xdg-user-dirs
+
+# shell (barra, dock, widgets, bloqueio, notificações)
+noctalia
+
+# aplicativos base
+kitty
+nautilus
+firefox
+
+# áudio, rede, bluetooth, energia
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+libpulse
+networkmanager
+bluez
+bluez-utils
+upower
+power-profiles-daemon
+
+# ferramentas usadas pelos scripts e pelo painel
+grim
+slurp
+wl-clipboard
+cliphist
+brightnessctl
+playerctl
+jq
+libnotify
+ffmpeg
+
+# painel de controle, ilha, menu de apps e gerador de ícones (Python + GTK)
+python-gobject
+gtk3
+gtk-layer-shell
+python-pillow
+python-cairo
+gdk-pixbuf2
+librsvg
+
+# fontes, ícones e tema
+ttf-jetbrains-mono-nerd
+inter-font
+noto-fonts
+noto-fonts-emoji
+papirus-icon-theme
+adw-gtk-theme
+nwg-look
+
+# extras
+fastfetch
+btop

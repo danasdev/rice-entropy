@@ -1,0 +1,524 @@
+# Noctalia — rice "ondas roxas" (overrides; o resto usa os padrões)
+# Referência completa: https://github.com/noctalia-dev/noctalia/blob/main/example.toml
+
+[shell]
+font_family = "Inter"
+corner_radius_scale = 1.15
+lang = "pt-BR"
+polkit_agent = false
+avatar_path = "~/.face"
+
+[shell.greeter_sync]
+auto_sync = false  # a tela de login tem visual fixo (greeter.toml)
+
+[shell.panel]
+transparency_mode = "glass"
+borders = true
+shadow = true
+launcher_placement = "floating"
+launcher_position = "center"
+
+[shell.window_switcher]
+style = "carousel"
+mru = true
+
+[wallpaper]
+enabled = true
+fill_mode = "crop"
+directory = "~/Pictures/Wallpapers"
+transition = ["fade", "disc", "zoom"]
+transition_duration = 1200
+
+[wallpaper.default]
+path = "~/Pictures/Wallpapers/entropy-default.png"
+
+[theme]
+mode = "dark"
+source = "builtin"
+builtin = "Tokyo-Night"
+
+[theme.templates]
+enable_builtin_templates = true
+builtin_ids = ["hyprland", "kitty", "gtk3", "gtk4", "qt", "kcolorscheme", "btop", "cava"]
+community_ids = ["pywalfox"]
+
+[theme.templates.user.atalhos]
+input_path = "~/.config/noctalia/templates/atalhos.css"
+output_path = "~/.local/share/atalhos/cores.css"
+
+[theme.templates.user.gtksourceview]
+input_path = "~/.config/noctalia/templates/gtksourceview.xml"
+output_path = "~/.local/share/gtksourceview-5/styles/noctalia.xml"
+
+[lockscreen]
+enabled = true
+fingerprint = false   # desbloquear com a digital
+blur_intensity = 0.35
+tint_intensity = 0.25
+transition = ["fade"]
+transition_duration = 900
+
+[bar.main]
+position = "top"
+thickness = 34
+background_opacity = 0.18
+compositor_blur = true
+radius = 14
+margin_ends = 10
+margin_edge = 8
+padding = 14
+widget_spacing = 10
+shadow = true
+font_scale = 0.95
+start = ["launcher", "workspaces", "media"]
+center = ["clock"]
+end = ["tray", "network", "volume", "battery", "notifications", "control-center"]
+
+[dock]
+enabled = true
+position = "bottom"
+icon_size = 34
+background_opacity = 0.55
+radius = 14
+radius_top_left = 14
+radius_top_right = 14
+radius_bottom_left = 14
+radius_bottom_right = 14
+margin_edge = 8
+item_spacing = 6
+main_axis_padding = 10
+cross_axis_padding = 6
+shadow = true
+show_running = true
+reserve_space = false
+auto_hide = true
+smart_auto_hide = true
+magnification = true
+magnification_scale = 1.35
+show_dots = true
+launcher_position = "none"
+launcher_icon = "grid-dots"
+pinned = ["entropy-apps", "kitty", "org.gnome.Nautilus", "firefox", "spotify-launcher"]
+
+# ── Widgets da barra ─────────────────────────────────────────────
+[widget.workspaces]
+style = "regular"
+show_labels = true
+show_icons = false
+labels_only_when_occupied = false
+active_pill_size = 2.0
+pill_scale = 1.0
+
+[widget.media]
+hide_when_no_media = true
+hide_artist = true
+max_length = 200
+title_scroll = "on_hover"
+
+[widget.media.actions]
+left = "exec @HOME@/.config/hypr/rice/scripts/focar-player.sh"
+
+[widget.clock]
+format = "{:%a %d  %H:%M}"
+tooltip_format = "{:%A, %d de %B de %Y}"
+
+[widget.network]
+show_label = false
+
+[widget.volume]
+show_label = false
+
+[widget.battery]
+display_mode = "glyph"
+show_label = true
+hide_when_full = true
+
+# ── Clima (localização aproximada pelo IP) ───────────────────────
+[weather]
+enabled = true
+unit = "celsius"
+effects = true
+
+[location]
+auto_locate = true
+
+# ── Widgets da área de trabalho ──────────────────────────────────
+[desktop_widgets]
+enabled = true
+schema_version = 2
+widget_order = ["hd_clock", "hd_date", "hd_weather", "hd_viz", "hd_media", "hd_cpu", "hd_ram", "hd_calendar", "lp_clock", "lp_date", "lp_weather", "lp_viz", "lp_media", "lp_cpu", "lp_ram", "lp_calendar"]
+
+[desktop_widgets.widget.hd_clock]
+type = "clock"
+output = "HDMI-A-1"
+cx = 2250.0
+cy = 150.0
+box_width = 340.0
+box_height = 120.0
+[desktop_widgets.widget.hd_clock.settings]
+clock_style = "digital"
+format = "{:%H:%M}"
+center_text = true
+color = "surface"
+shadow = false
+background = false
+
+[desktop_widgets.widget.hd_date]
+type = "clock"
+output = "HDMI-A-1"
+cx = 2250.0
+cy = 235.0
+box_width = 340.0
+box_height = 30.0
+[desktop_widgets.widget.hd_date.settings]
+clock_style = "digital"
+format = "{:%A, %d de %B}"
+center_text = true
+color = "surface_variant"
+shadow = false
+background = false
+
+[desktop_widgets.widget.hd_weather]
+type = "weather"
+output = "HDMI-A-1"
+cx = 300.0
+cy = 230.0
+box_width = 380.0
+box_height = 200.0
+[desktop_widgets.widget.hd_weather.settings]
+show_forecast = true
+forecast_days = 3
+background = true
+background_opacity = 0.35
+background_radius = 18.0
+
+[desktop_widgets.widget.hd_media]
+type = "media_player"
+output = "HDMI-A-1"
+cx = 260.0
+cy = 1250.0
+box_width = 400.0
+box_height = 120.0
+[desktop_widgets.widget.hd_media.settings]
+hide_when_no_media = true
+layout = "horizontal"
+background = false
+shadow = true
+color = "on_surface"
+
+[desktop_widgets.widget.hd_cpu]
+type = "sysmon"
+output = "HDMI-A-1"
+cx = 2250.0
+cy = 345.0
+box_width = 340.0
+box_height = 90.0
+[desktop_widgets.widget.hd_cpu.settings]
+display = "graph"
+stat = "cpu_usage"
+stat2 = "cpu_temp"
+background = true
+background_opacity = 0.35
+background_radius = 18.0
+
+[desktop_widgets.widget.hd_ram]
+type = "sysmon"
+output = "HDMI-A-1"
+cx = 2250.0
+cy = 455.0
+box_width = 340.0
+box_height = 90.0
+[desktop_widgets.widget.hd_ram.settings]
+display = "graph"
+stat = "ram_pct"
+background = true
+background_opacity = 0.35
+background_radius = 18.0
+
+[desktop_widgets.widget.hd_calendar]
+type = "calendar"
+output = "HDMI-A-1"
+cx = 2250.0
+cy = 680.0
+box_width = 340.0
+box_height = 320.0
+[desktop_widgets.widget.hd_calendar.settings]
+show_events = true
+background = true
+background_opacity = 0.35
+background_radius = 18.0
+
+[desktop_widgets.widget.lp_clock]
+type = "clock"
+output = "eDP-1"
+cx = 640.0
+cy = 240.0
+box_width = 420.0
+box_height = 130.0
+[desktop_widgets.widget.lp_clock.settings]
+clock_style = "digital"
+format = "{:%H:%M}"
+center_text = true
+color = "surface"
+background = false
+shadow = false
+
+[desktop_widgets.widget.lp_date]
+type = "clock"
+output = "eDP-1"
+cx = 640.0
+cy = 325.0
+box_width = 380.0
+box_height = 32.0
+[desktop_widgets.widget.lp_date.settings]
+clock_style = "digital"
+format = "{:%A, %d de %B}"
+center_text = true
+color = "surface_variant"
+background = false
+shadow = false
+
+[desktop_widgets.widget.lp_weather]
+type = "weather"
+output = "eDP-1"
+cx = 170.0
+cy = 140.0
+box_width = 260.0
+box_height = 140.0
+[desktop_widgets.widget.lp_weather.settings]
+show_forecast = true
+forecast_days = 3
+background = true
+background_opacity = 0.35
+background_radius = 18.0
+
+[desktop_widgets.widget.lp_media]
+type = "media_player"
+output = "eDP-1"
+cx = 170.0
+cy = 610.0
+box_width = 300.0
+box_height = 96.0
+[desktop_widgets.widget.lp_media.settings]
+hide_when_no_media = true
+layout = "horizontal"
+background = false
+shadow = true
+color = "on_surface"
+
+[desktop_widgets.widget.lp_cpu]
+type = "sysmon"
+output = "eDP-1"
+cx = 1110.0
+cy = 90.0
+box_width = 250.0
+box_height = 64.0
+[desktop_widgets.widget.lp_cpu.settings]
+display = "graph"
+stat = "cpu_usage"
+stat2 = "cpu_temp"
+background = true
+background_opacity = 0.35
+background_radius = 18.0
+
+[desktop_widgets.widget.lp_ram]
+type = "sysmon"
+output = "eDP-1"
+cx = 1110.0
+cy = 170.0
+box_width = 250.0
+box_height = 64.0
+[desktop_widgets.widget.lp_ram.settings]
+display = "graph"
+stat = "ram_pct"
+background = true
+background_opacity = 0.35
+background_radius = 18.0
+
+[desktop_widgets.widget.lp_calendar]
+type = "calendar"
+output = "eDP-1"
+cx = 1110.0
+cy = 370.0
+box_width = 250.0
+box_height = 250.0
+[desktop_widgets.widget.lp_calendar.settings]
+show_events = true
+background = true
+background_opacity = 0.35
+background_radius = 18.0
+
+[desktop_widgets.widget.hd_viz]
+type = "audio_visualizer"
+output = "HDMI-A-1"
+cx = 300.0
+cy = 720.0
+box_width = 440.0
+box_height = 360.0
+enabled = true
+[desktop_widgets.widget.hd_viz.settings]
+bands = 48
+mirrored = true
+centered = true
+show_when_idle = false
+color_1 = "primary"
+color_2 = "secondary"
+background = false
+
+[desktop_widgets.widget.lp_viz]
+type = "audio_visualizer"
+output = "eDP-1"
+cx = 170.0
+cy = 390.0
+box_width = 280.0
+box_height = 220.0
+enabled = true
+[desktop_widgets.widget.lp_viz.settings]
+bands = 48
+mirrored = true
+centered = true
+show_when_idle = false
+color_1 = "primary"
+color_2 = "secondary"
+background = false
+
+# ── Tela de bloqueio ─────────────────────────────────────────────
+[lockscreen_widgets]
+enabled = true
+schema_version = 2
+widget_order = ["lk_hd_clock", "lk_hd_date", "lk_hd_login", "lk_hd_media", "lk_lp_clock", "lk_lp_date", "lk_lp_login"]
+
+[lockscreen_widgets.widget.lk_hd_clock]
+type = "clock"
+output = "HDMI-A-1"
+cx = 1280.0
+cy = 520.0
+box_width = 620.0
+box_height = 200.0
+[lockscreen_widgets.widget.lk_hd_clock.settings]
+clock_style = "digital"
+format = "{:%H:%M}"
+center_text = true
+color = "on_surface"
+shadow = true
+background = false
+
+[lockscreen_widgets.widget.lk_hd_date]
+type = "clock"
+output = "HDMI-A-1"
+cx = 1280.0
+cy = 655.0
+box_width = 560.0
+box_height = 44.0
+[lockscreen_widgets.widget.lk_hd_date.settings]
+clock_style = "digital"
+format = "{:%A, %d de %B}"
+center_text = true
+color = "on_surface_variant"
+shadow = true
+background = false
+
+[lockscreen_widgets.widget.lk_hd_login]
+type = "login_box"
+output = "HDMI-A-1"
+cx = 1280.0
+cy = 790.0
+box_width = 440.0
+box_height = 64.0
+[lockscreen_widgets.widget.lk_hd_login.settings]
+layout = "compact"
+background_color = "surface"
+background_opacity = 0.55
+background_radius = 32.0
+input_radius = 24.0
+input_opacity = 0.9
+center_password_text = true
+show_caps_lock = true
+show_keyboard_layout = true
+
+[lockscreen_widgets.widget.lk_hd_media]
+type = "media_player"
+output = "HDMI-A-1"
+cx = 1280.0
+cy = 1280.0
+box_width = 480.0
+box_height = 110.0
+[lockscreen_widgets.widget.lk_hd_media.settings]
+layout = "horizontal"
+hide_when_no_media = true
+background = true
+background_opacity = 0.35
+background_radius = 18.0
+
+[lockscreen_widgets.widget.lk_lp_clock]
+type = "clock"
+output = "eDP-1"
+cx = 640.0
+cy = 230.0
+box_width = 360.0
+box_height = 120.0
+[lockscreen_widgets.widget.lk_lp_clock.settings]
+clock_style = "digital"
+format = "{:%H:%M}"
+center_text = true
+color = "on_surface"
+background = false
+
+[lockscreen_widgets.widget.lk_lp_date]
+type = "clock"
+output = "eDP-1"
+cx = 640.0
+cy = 310.0
+box_width = 340.0
+box_height = 30.0
+[lockscreen_widgets.widget.lk_lp_date.settings]
+clock_style = "digital"
+format = "{:%A, %d de %B}"
+center_text = true
+color = "on_surface_variant"
+background = false
+
+[lockscreen_widgets.widget.lk_lp_login]
+type = "login_box"
+output = "eDP-1"
+cx = 640.0
+cy = 410.0
+box_width = 340.0
+box_height = 56.0
+[lockscreen_widgets.widget.lk_lp_login.settings]
+layout = "compact"
+background_color = "surface"
+background_opacity = 0.55
+background_radius = 28.0
+input_radius = 22.0
+center_password_text = true
+
+# ── Central de controle ──────────────────────────────────────────
+[control_center]
+width = 820
+sidebar = "compact"
+show_shortcut_labels = true
+show_session_button = true
+
+[[control_center.shortcuts]]
+type = "network"
+[[control_center.shortcuts]]
+type = "bluetooth"
+[[control_center.shortcuts]]
+type = "notifications"
+[[control_center.shortcuts]]
+type = "nightlight"
+[[control_center.shortcuts]]
+type = "caffeine"
+[[control_center.shortcuts]]
+type = "power_profile"
+
+# ── Hooks ────────────────────────────────────────────────────────
+[hooks]
+# contraste automático dos widgets de texto conforme o wallpaper
+wallpaper_changed = "@HOME@/.config/hypr/rice/scripts/contraste-widgets.py; @HOME@/.config/hypr/rice/scripts/vidro-adaptativo.py; @HOME@/.config/hypr/rice/scripts/icones.sh"
+started = "sleep 3; @HOME@/.config/hypr/rice/scripts/contraste-widgets.py; @HOME@/.config/hypr/rice/scripts/vidro-adaptativo.py; noctalia msg bar-hide; @HOME@/.config/hypr/rice/scripts/icones.sh"
+
+[calendar]
+enabled = true
+refresh_minutes = 2

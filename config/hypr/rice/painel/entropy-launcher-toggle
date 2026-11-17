@@ -1,0 +1,9 @@
+#!/bin/bash
+# uso: entropy-launcher-toggle [monitor]
+RT="${XDG_RUNTIME_DIR:-/tmp}"
+echo "$1" > "$RT/entropy-cc.mon"
+if [ -f "$RT/entropy-launcher.pid" ] && kill -0 "$(cat "$RT/entropy-launcher.pid")" 2>/dev/null; then
+  kill -USR1 "$(cat "$RT/entropy-launcher.pid")"
+else
+  setsid python3 "$HOME/.config/hypr/rice/painel/entropy-launcher.py" --daemon --open >>/tmp/entropy-launcher.log 2>&1 &
+fi
