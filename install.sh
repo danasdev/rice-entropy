@@ -34,6 +34,32 @@ grep -rIl '@HOME@' "$HOME/.config/hypr" "$HOME/.config/noctalia" "$HOME/.config/
 chmod +x "$HOME/.config/hypr/rice/scripts/"* "$HOME/.config/hypr/rice/painel/"*-toggle \
          "$HOME/.config/hypr/rice/painel/"*.py 2>/dev/null || true
 
+say "Teclado"
+echo "  1) ABNT2 (brasileiro, com Ç)   2) US internacional   3) US"
+K=""
+read -r -p "Escolha [1]: " K </dev/tty 2>/dev/null || K=""
+case "${K:-1}" in
+  2) KL=us; KV=intl;  KM="" ;;
+  3) KL=us; KV="";    KM="" ;;
+  *) KL=br; KV=abnt2; KM=abnt2 ;;
+esac
+sed -i "s/^ *kb_layout.*/    kb_layout = $KL/; s/^ *kb_variant.*/    kb_variant = $KV/; s/^ *kb_model.*/    kb_model = $KM/" "$HOME/.config/hypr/rice/input.conf"
+echo "teclado: $KL ${KV:+($KV)}"
+
+say "Monitores (para os widgets do Noctalia)"
+MONS=()
+for st in /sys/class/drm/card*-*/status; do
+  [ -e "$st" ] || continue
+  [ "$(cat "$st")" = connected ] && MONS+=("$(basename "$(dirname "$st")" | sed 's/^card[0-9]*-//')")
+done
+LAP=""; EXT=""
+for m in "${MONS[@]:-}"; do [ -z "$LAP" ] && [[ "$m" == eDP* ]] && LAP="$m"; done
+[ -n "$LAP" ] || LAP="${MONS[0]:-eDP-1}"
+for m in "${MONS[@]:-}"; do [ "$m" != "$LAP" ] && [ -z "$EXT" ] && EXT="$m"; done
+[ -n "$EXT" ] || EXT="HDMI-A-1"
+sed -i "s/output = \"eDP-1\"/output = \"$LAP\"/; s/output = \"HDMI-A-1\"/output = \"$EXT\"/" "$HOME/.config/noctalia/config.toml"
+echo "monitor principal: $LAP   secundário: $EXT"
+
 say "Papel de parede padrão"
 mkdir -p "$HOME/Pictures/Wallpapers"
 cp -n "$REPO/wallpapers/"* "$HOME/Pictures/Wallpapers/"
@@ -47,9 +73,8 @@ cat <<EOF
 
 Pronto. Falta o que precisa rodar DENTRO do Hyprland:
   1) Reinicie e entre no Hyprland (escolha "Hyprland" no login, ou rode 'Hyprland' no TTY).
-  2) Abra um terminal (Super+Q) e rode:   $REPO/setup-plugins.sh
-  3) Ajuste seus monitores em ~/.config/hypr/rice/monitors.conf (veja 'hyprctl monitors')
-     e o nome dos monitores nos widgets de ~/.config/noctalia/config.toml (linhas 'output = ...').
+  2) Abra um terminal (Super+Enter) e rode:   $REPO/setup-plugins.sh
+  3) Se precisar de escala ou posição de monitores: ~/.config/hypr/rice/monitors.conf (veja 'hyprctl monitors').
 
 Backup das suas configs antigas (se existiam): $BK
 EOF
