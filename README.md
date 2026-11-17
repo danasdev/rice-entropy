@@ -64,7 +64,7 @@ O Hyprland escolhe **na abertura** qual configuração usar e dá prioridade a u
 
 ```bash
 mv ~/.config/hypr/hyprland.lua ~/.config/hypr/hyprland.lua.bak
-hyprctl dispatch exit    # ou reinicie
+pkill -x Hyprland        # ou reinicie (em modo Lua o `hyprctl dispatch exit` não funciona)
 ```
 
 ## Depois de instalar
