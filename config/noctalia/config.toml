@@ -75,7 +75,7 @@ center = ["clock"]
 end = ["tray", "network", "volume", "battery", "notifications", "control-center"]
 
 [dock]
-enabled = true
+enabled = false
 position = "bottom"
 icon_size = 34
 background_opacity = 0.55

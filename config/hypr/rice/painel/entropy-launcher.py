@@ -83,6 +83,9 @@ def main_cat(app):
     return "Outros"
 
 
+RT_ = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+
+
 class Launcher:
     RES = 84   # espaço reservado embaixo (dock + respiro); o painel fica logo acima
 
@@ -112,7 +115,14 @@ class Launcher:
 
     def on_anim_draw(self, widget, cr):
         self.flip_h = float(widget.get_allocated_height())
-        return cc.Panel.on_anim_draw(self, widget, cr)
+        r = cc.Panel.on_anim_draw(self, widget, cr)
+        ds = getattr(self, "dock_snap", None)
+        if self.jelly is None and ds is not None:
+            a = 1.0 - self.smoothstep(0.0, 0.28, max(0.0, min(1.0, self.anim_p)))
+            if a > 0.01:
+                cr.set_source_surface(ds, widget.get_allocated_width() / 2.0 - ds.get_width() / 2.0, self.flip_h - 3.0 - ds.get_height())
+                cr.paint_with_alpha(a)
+        return r
 
     def panel_rect(self):
         pt = self.morph_widget.translate_coordinates(self.outer, 0, 0)
@@ -135,7 +145,17 @@ class Launcher:
         return {"hw": w / 2.0, "D": Ho - y, "f": float(self.PF), "r": float(sc(36)), "a": self.morph_rgba[3]}
 
     def morph_origin(self):
-        return {"hw": 62.0, "D": 8.0, "f": 26.0, "r": 12.0, "a": self.morph_rgba[3]}
+        try:
+            pw, ph = map(float, open(os.path.join(RT_, "entropy-dock.geom")).read().split())
+        except Exception:
+            return {"hw": 62.0, "D": 8.0, "f": 26.0, "r": 12.0, "a": self.morph_rgba[3]}
+        return {"hw": pw / 2.0, "D": 3.0 + ph, "f": 30.0, "r": ph / 2.0, "a": self.morph_rgba[3]}
+
+    def load_dock_snap(self):
+        try:
+            return cairo.ImageSurface.create_from_png(os.path.join(RT_, "entropy-dock.png"))
+        except Exception:
+            return None
 
     def __init__(self, daemon):
         self.daemon, self.visible, self.closing, self.ready = daemon, False, False, False
@@ -625,6 +645,7 @@ class Launcher:
     def anim_open(self):
         try:
             self.prepare_morph()
+            self.dock_snap = self.load_dock_snap()
             self.set_input(empty=True)
             self.anim_p = 0.0
             self.wstack.set_visible_child_name("anim")
@@ -648,14 +669,22 @@ class Launcher:
         self.closing = True
         try:
             self.prepare_morph()
+            self.isl_snap = self.load_dock_snap()
             self.set_input(empty=True)
             self.anim_p = 1.0
             self.wstack.set_visible_child_name("anim")
-            self.run_jelly(lambda early: None if early else self.after_close())
+            self.run_jelly(lambda early: self.dock_back() if early else self.after_close())
         except Exception as e:
             print("close:", repr(e), flush=True)
             self.jelly = None
             self.after_close()
+
+    def dock_back(self):
+        self.write_state(False)
+        try:
+            os.kill(int(open(os.path.join(RT_, "entropy-dock.pid")).read()), signal.SIGUSR2)
+        except Exception:
+            pass
 
     def after_close(self):
         self.jelly = None

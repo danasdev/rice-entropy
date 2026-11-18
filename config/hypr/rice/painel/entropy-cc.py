@@ -600,7 +600,8 @@ class Panel:
             cr.restore()
         ia = self.smoothstep(0.30, 0.62, q)
         if self.isl_snap is not None and ia > 0.01:
-            cr.set_source_surface(self.isl_snap, cx - self.isl_snap.get_width() / 2.0, 3.0)
+            iy = (self.flip_h - 3.0 - self.isl_snap.get_height()) if getattr(self, "flip_h", 0.0) else 3.0
+            cr.set_source_surface(self.isl_snap, cx - self.isl_snap.get_width() / 2.0, iy)
             cr.paint_with_alpha(ia)
         return False
 

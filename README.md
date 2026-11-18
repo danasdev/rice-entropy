@@ -8,6 +8,7 @@ Uma rice para **Arch Linux + Hyprland** baseada no shell [Noctalia](https://gith
 
 - **Vidro:** o plugin [hyprglass](https://github.com/hyprnux/hyprglass) aplica refração e blur no kitty, na barra, no dock e nos widgets. Um script mede o brilho do papel de parede e escurece ou clareia o vidro sozinho, para o texto sempre ficar legível.
 - **Painel de controle (Super+S):** Wi-Fi, Bluetooth, volume, brilho, mídia, notificações, energia, rede, calendário, clima, papel de parede e sessão, tudo dentro do próprio painel. Abre com uma animação de líquido saindo do topo.
+- **Dock (embaixo):** ilha própria que sai de baixo da tela e se expande no menu de apps (um objeto só).
 - **Ilha (topo):** pílula com hora e bateria, ligada à borda do topo por uma forma líquida. Some quando há janelas abertas e aparece na área de trabalho vazia ou ao passar o mouse no topo; clicar abre o painel.
 - **Menu de apps (Super+Espaço):** busca, grade/lista, recentes, categorias, calculadora (`=`), executar comando (`>`), busca na web e histórico da área de transferência.
 - **Ícones Entropy:** tema gerado a partir das logos reais dos apps, recoloridas em um tom só da paleta do papel de parede.
