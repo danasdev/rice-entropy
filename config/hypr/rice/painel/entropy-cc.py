@@ -1811,6 +1811,45 @@ class Panel:
         return False
 
 
+
+def watch_palette(pidfile=None):
+    """recarrega o processo quando o Noctalia troca a paleta (wallpaper novo), sem depender de hook"""
+    f = os.path.expanduser("~/.config/hypr/noctalia.conf")
+    rt = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+
+    def mt():
+        try:
+            return os.stat(f).st_mtime
+        except OSError:
+            return 0.0
+    base, st = mt(), {"seen": None, "at": 0.0}
+
+    def busy():
+        for n in ("entropy-cc.open", "entropy-launcher.open"):
+            try:
+                if open(os.path.join(rt, n)).read().strip() == "1":
+                    return True
+            except OSError:
+                pass
+        return False
+
+    def chk():
+        m = mt()
+        if m == base:
+            return True
+        now = GLib.get_monotonic_time() / 1e6
+        if st["seen"] != m:
+            st["seen"], st["at"] = m, now
+        elif now - st["at"] > 1.5 and not busy():
+            try:
+                if pidfile:
+                    os.remove(pidfile)
+            except OSError:
+                pass
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        return True
+    GLib.timeout_add(1000, chk)
+
 def main():
     daemon = "--daemon" in sys.argv
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -1851,6 +1890,7 @@ def main():
         GLib.idle_add(lambda: (p.open_panel(mon(), page()), False)[1])
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, toggle)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, lambda: (Gtk.main_quit(), False)[1])
+    watch_palette(pidf)
     Gtk.main()
     for f in (pidf,):
         try:

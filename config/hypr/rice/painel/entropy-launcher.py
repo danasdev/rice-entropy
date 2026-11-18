@@ -761,6 +761,7 @@ def main():
         GLib.idle_add(lambda: (app.open_launcher(mon()), False)[1])
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, toggle)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, lambda: (Gtk.main_quit(), False)[1])
+    cc.watch_palette(PIDF)
     Gtk.main()
     try:
         os.remove(PIDF)

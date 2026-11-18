@@ -523,6 +523,7 @@ def main():
     APP = App()
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR2, lambda: (APP.tick(True), True)[1])
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, lambda: (Gtk.main_quit(), False)[1])
+    cc.watch_palette(PIDF)
     Gtk.main()
     try:
         os.remove(PIDF)
