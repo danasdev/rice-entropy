@@ -86,7 +86,18 @@ def main_cat(app):
 class Launcher:
     RES = 84   # espaço reservado embaixo (dock + respiro); o painel fica logo acima
 
-    snapshot = cc.Panel.snapshot
+    def snapshot(self):
+        """conteúdo do menu, já na posição da janela (a margem fica fora do outer)"""
+        self.snapping = True
+        try:
+            w, h = self.wstack.get_allocated_width(), self.wstack.get_allocated_height()
+            surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, max(1, w), max(1, h))
+            cr = cairo.Context(surf)
+            cr.translate(self.PF + 6, 6)
+            self.outer.draw(cr)
+        finally:
+            self.snapping = False
+        return surf
     PF = 30
     jelly_dur = 0.62
     jelly, isl_snap, flip_h = None, None, 0.0
