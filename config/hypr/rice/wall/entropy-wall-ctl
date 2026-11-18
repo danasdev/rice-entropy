@@ -1,0 +1,32 @@
+#!/bin/bash
+# uso: entropy-wall-ctl set <nome> | off | list | random | status
+LIB="$HOME/.local/share/entropy/wallpapers"
+ST="$HOME/.config/entropy-wall.json"
+D="$HOME/.config/hypr/rice/wall"
+RT="${XDG_RUNTIME_DIR:-/tmp}"
+poke() {
+  if [ -f "$RT/entropy-wall.pid" ] && kill -0 "$(cat "$RT/entropy-wall.pid")" 2>/dev/null; then
+    kill -USR1 "$(cat "$RT/entropy-wall.pid")"
+  else
+    setsid python3 "$D/entropy-wall.py" >/tmp/entropy-wall.log 2>&1 < /dev/null &
+  fi
+}
+setwall() {  # $1 = nome ou vazio
+  # guarda o wallpaper estático original para o "off" restaurar
+  if [ -n "$1" ] && [ ! -s "$HOME/.config/entropy-wall.restore" ]; then
+    noctalia msg wallpaper-get > "$HOME/.config/entropy-wall.restore" 2>/dev/null
+  fi
+  if [ -z "$1" ] && [ -s "$HOME/.config/entropy-wall.restore" ]; then
+    noctalia msg wallpaper-set "$(cat "$HOME/.config/entropy-wall.restore")" >/dev/null 2>&1; : > "$HOME/.config/entropy-wall.restore"
+  fi
+  printf '{"current": %s}\n' "$([ -n "$1" ] && printf '"%s"' "$1" || echo null)" > "$ST"
+  poke
+}
+case "$1" in
+  set) [ -d "$LIB/$2" ] || { echo "não existe: $2"; exit 1; }; setwall "$2" ;;
+  off) setwall "" ;;
+  random) n=$(ls "$LIB" | shuf -n1); setwall "$n"; echo "$n" ;;
+  list) ls "$LIB" ;;
+  status) cat "$ST" 2>/dev/null ;;
+  *) echo "uso: $0 set <nome> | off | list | random | status"; exit 1 ;;
+esac

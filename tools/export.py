@@ -115,6 +115,13 @@ def main():
         "# Configuração genérica de monitores (ajuste à sua tela: `hyprctl monitors`).\n"
         "# Exemplo de duas telas com escala: veja monitors.exemplo-autor.conf\n"
         "monitor = , preferred, auto, 1\n")
+    # wallpapers animados de exemplo (shaders e loop de vídeo)
+    lw = os.path.join(REPO, "live-wallpapers")
+    shutil.rmtree(lw, ignore_errors=True)
+    for nome in ("aurora", "ondas", "loop-fluido"):
+        src = os.path.join(HOME, ".local/share/entropy/wallpapers", nome)
+        if os.path.isdir(src):
+            shutil.copytree(src, os.path.join(lw, nome), ignore=shutil.ignore_patterns("preview.jpg"))
     print("exportado para", OUT)
     import subprocess
     subprocess.run([sys.executable, os.path.join(REPO, "tools", "gen-archinstall.py")], check=False)

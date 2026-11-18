@@ -88,6 +88,11 @@ say "Papel de parede padrão"
 mkdir -p "$HOME/Pictures/Wallpapers"
 cp -n "$REPO/wallpapers/"* "$HOME/Pictures/Wallpapers/"
 
+say "Wallpapers animados de exemplo"
+mkdir -p "$HOME/.local/share/entropy/wallpapers"
+cp -rn "$REPO/live-wallpapers/"* "$HOME/.local/share/entropy/wallpapers/" 2>/dev/null || true
+chmod +x "$HOME/.config/hypr/rice/wall/"entropy-wall* 2>/dev/null || true
+
 say "Pasta de usuário e nome na saudação do painel"
 xdg-user-dirs-update || true
 [ -f "$HOME/.config/entropy-name" ] || printf '%s\n' "$(getent passwd "$USER" | cut -d: -f5 | cut -d, -f1 | awk '{print $1}')" > "$HOME/.config/entropy-name"

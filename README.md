@@ -14,6 +14,28 @@ Uma rice para **Arch Linux + Hyprland** baseada no shell [Noctalia](https://gith
 - **Ícones Entropy:** tema gerado a partir das logos reais dos apps, recoloridas em um tom só da paleta do papel de parede.
 - **Minimizar com fade (Super+M),** gaveta de minimizadas, snap de janelas e capturas de tela/gravação.
 
+## Wallpaper engine (animado e interativo)
+
+Engine própria (`config/hypr/rice/wall`): shaders GLSL no formato Shadertoy, loops de vídeo e imagens com parallax que seguem o mouse. Os painéis, widgets e ícones continuam pegando as cores do wallpaper (o engine usa um quadro como preview para o Noctalia).
+
+```bash
+~/.config/hypr/rice/wall/entropy-wall-ctl list            # wallpapers disponíveis
+~/.config/hypr/rice/wall/entropy-wall-ctl set aurora      # liga (aurora, ondas, loop-fluido...)
+~/.config/hypr/rice/wall/entropy-wall-ctl random
+~/.config/hypr/rice/wall/entropy-wall-ctl off             # volta ao wallpaper estático
+```
+
+Cada wallpaper é uma pasta em `~/.local/share/entropy/wallpapers/<nome>/` com um `manifest.json`:
+
+```json
+{"type": "shader", "shader": "meu.frag", "channels": ["foto.jpg"], "speed": 1.0}
+{"type": "video",  "file": "loop.mp4", "parallax": 0.03, "fps": 30}
+{"type": "image",  "file": "foto.jpg", "parallax": 0.04}
+{"type": "layers", "layers": [{"file": "fundo.png", "depth": 0.3}, {"file": "frente.png", "depth": 1.0}], "parallax": 0.05}
+```
+
+Shaders têm `iResolution`, `iTime`, `iMouse`, `iParallax` (-1..1, suavizado, segue o cursor) e `iChannel0/1`.
+
 ## Instalação (Arch)
 
 A instalação tem **duas fases**: a do sistema (pacotes e arquivos) e a de dentro do Hyprland (plugin de vidro e ícones), porque o `hyprpm` só funciona com o Hyprland rodando.
