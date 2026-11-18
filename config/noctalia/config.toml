@@ -516,7 +516,7 @@ type = "power_profile"
 # ── Hooks ────────────────────────────────────────────────────────
 [hooks]
 # contraste automático dos widgets de texto conforme o wallpaper
-wallpaper_changed = "@HOME@/.config/hypr/rice/scripts/contraste-widgets.py; @HOME@/.config/hypr/rice/scripts/vidro-adaptativo.py; @HOME@/.config/hypr/rice/scripts/icones.sh"
+wallpaper_changed = "@HOME@/.config/hypr/rice/scripts/contraste-widgets.py; @HOME@/.config/hypr/rice/scripts/vidro-adaptativo.py; @HOME@/.config/hypr/rice/scripts/icones.sh; @HOME@/.config/hypr/rice/scripts/reiniciar-painel.sh"
 started = "sleep 3; @HOME@/.config/hypr/rice/scripts/contraste-widgets.py; @HOME@/.config/hypr/rice/scripts/vidro-adaptativo.py; noctalia msg bar-hide; @HOME@/.config/hypr/rice/scripts/icones.sh"
 
 [calendar]

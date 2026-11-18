@@ -31,6 +31,8 @@ def palette():
                 d["fg"] = m.group(1)
     except Exception:
         pass
+    sr, pr_ = hex2rgb(d["surface"]), hex2rgb(d["primary"])
+    d["surface"] = "#%02x%02x%02x" % tuple(round(a + (b - a) * 0.13) for a, b in zip(sr, pr_))   # um toque da cor do wallpaper
     r, g_, b = hex2rgb(d["primary"])
     d["on_acc"] = "#10121a" if (0.299 * r + 0.587 * g_ + 0.114 * b) > 140 else "#ffffff"
     return d
@@ -409,6 +411,25 @@ class Panel:
         cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
         cr.close_path()
 
+    def rpath(self, cr, x, y, w, h, r):
+        """retângulo arredondado com a borda de cima ondulando (gota / líquido)"""
+        amp, ph = getattr(self, "anim_rip", (0.0, 0.0))
+        if amp < 0.05:
+            return self.rrect(cr, x, y, w, h, r)
+        r = max(0.0, min(r, w / 2.0, h / 2.0))
+        k = 2 * math.pi / 120.0
+        cr.new_sub_path()
+        cr.arc(x + r, y + r, r, math.pi, 1.5 * math.pi)
+        n = max(4, int((w - 2 * r) / 8))
+        for i in range(1, n):
+            px = x + r + (w - 2 * r) * i / n
+            d = min(px - x, x + w - px)
+            cr.line_to(px, y + amp * math.sin(k * d - ph) * min(1.0, d / 40.0))
+        cr.arc(x + w - r, y + r, r, 1.5 * math.pi, 2 * math.pi)
+        cr.arc(x + w - r, y + h - r, r, 0, 0.5 * math.pi)
+        cr.arc(x + r, y + h - r, r, 0.5 * math.pi, math.pi)
+        cr.close_path()
+
     def snapshot(self):
         """imagem do conteúdo do painel, sem o fundo (o fundo é desenhado pela forma)"""
         self.snapping = True
@@ -592,13 +613,20 @@ class Panel:
         k = max(0.0, p)
         x, y = ox + (tx - ox) * k, oy + (ty - oy) * k
         w, h = max(2.0, ow + (tw - ow) * k), max(2.0, oh + (th - oh) * k)
+        wob = getattr(self, "anim_wob", 0.0)
+        if wob:
+            dh = 22.0 * wob
+            y -= dh
+            h += dh
+            x += 0.35 * dh
+            w -= 0.7 * dh
         pc = max(0.0, min(1.0, p))
         r = orr + (tr - orr) * pc
         a_t = self.morph_rgba[3]
         fa = a_t * (1.0 - self.smoothstep(0.30, 0.85, pc)) + (0.93 - a_t) * (1.0 - self.smoothstep(0.0, 0.5, pc))
         if pc < 0.08:
             fa *= pc / 0.08
-        self.rrect(cr, x, y, w, h, r)
+        self.rpath(cr, x, y, w, h, r)
         cr.set_source_rgba(self.morph_rgba[0], self.morph_rgba[1], self.morph_rgba[2], fa)
         cr.fill()
         di = getattr(self, "dock_img", None)
@@ -607,7 +635,7 @@ class Panel:
             sc_ = getattr(self, "dock_scale", 1.0)
             iw, ih = di.get_width() / sc_, di.get_height() / sc_
             cr.save()
-            self.rrect(cr, x, y, w, h, r)
+            self.rpath(cr, x, y, w, h, r)
             cr.clip()
             cr.translate(x + (w - iw) / 2.0, y + h - ih)
             cr.scale(1.0 / sc_, 1.0 / sc_)
@@ -617,12 +645,12 @@ class Panel:
         ca = self.smoothstep(0.22, 0.78, pc)
         if ca > 0.01:
             cr.save()
-            self.rrect(cr, x, y, w, h, r)
+            self.rpath(cr, x, y, w, h, r)
             cr.clip()
             cr.set_source_surface(self.snap, 0, 0)
             cr.paint_with_alpha(ca)
             cr.restore()
-        self.rrect(cr, x, y, w, h, r)
+        self.rpath(cr, x, y, w, h, r)
         cr.set_source_rgba(self.fg_rgb[0], self.fg_rgb[1], self.fg_rgb[2], 0.18 * (1.0 - 0.5 * ca))
         cr.set_line_width(1.0)
         cr.stroke()

@@ -24,44 +24,33 @@ CATS = [("Network", "Internet", 0xF01E7), ("Development", "Desenvolvimento", 0xF
         ("System", "Sistema", 0xF0493), ("Utility", "Utilitários", 0xF05B7)]
 
 EXTRA_CSS = f"""
-.search {{ background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.16); border-radius: 20px; padding: 0px 14px 0px 18px; min-height: 58px; }}
-.search.focus {{ border-color: {cc.ACC}; box-shadow: 0 0 22px rgba(183,156,255,0.30); background: rgba(255,255,255,0.10); }}
-.search label.sg {{ font-family: '{cc.NF}'; font-size: 20px; color: {cc.ACC}; }}
-.search label.hint {{ font-family: Inter, sans-serif; font-size: 16px; color: rgba(255,255,255,0.5); }}
-.search entry {{ background: none; border: none; box-shadow: none; padding: 4px 8px; font-size: 17px; min-height: 24px; }}
-.kbd {{ background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.16); border-radius: 7px; padding: 2px 8px; }}
-.kbd label {{ font-family: '{cc.NF}'; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.62); }}
-.tab {{ background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 999px; padding: 6px 16px; }}
-.tab label {{ font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75); }}
-.tabx {{ padding: 6px 2px 0px 2px; border-radius: 8px; }}
-.tabx label.tl {{ font-size: 15px; font-weight: 500; color: rgba(255,255,255,0.55); }}
-.tabx:hover label.tl {{ color: rgba(255,255,255,0.88); }}
-.tabx.on label.tl {{ font-weight: 700; color: {PAL['fg']}; }}
-.cnt {{ background: rgba(255,255,255,0.08); border-radius: 999px; padding: 1px 7px; }}
-.cnt label {{ font-family: '{cc.NF}'; font-size: 11px; color: rgba(255,255,255,0.5); }}
-.tabx.on .cnt {{ background: rgba(183,156,255,0.22); }}
-.tabx.on .cnt label {{ color: {cc.ACC}; }}
-.uline {{ min-height: 3px; border-radius: 2px; background: transparent; }}
-.tabx.on .uline {{ background-image: linear-gradient(90deg, {cc.ACC}, {cc.ACC2}); box-shadow: 0 0 10px rgba(183,156,255,0.7); }}
-.hair {{ min-height: 1px; background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.16), rgba(255,255,255,0)); }}
-.seclbl {{ font-family: '{cc.NF}'; font-size: 11px; font-weight: 600; letter-spacing: 2px; color: {cc.ACC}; }}
-.seccnt {{ font-family: '{cc.NF}'; font-size: 11px; color: rgba(255,255,255,0.42); }}
-.cell {{ border-radius: 22px; padding: 12px 4px 10px 4px; border: 1px solid transparent; }}
-.cell:hover {{ background-color: rgba(255,255,255,0.07); }}
-.cell.sel {{ background-image: linear-gradient(180deg, rgba(183,156,255,0.20), rgba(127,178,255,0.06)); border-color: rgba(183,156,255,0.55); box-shadow: 0 6px 18px rgba(183,156,255,0.26); }}
-.plate {{ background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); border-radius: 19px; min-width: 64px; min-height: 64px; }}
-.plate.sm {{ min-width: 44px; min-height: 44px; border-radius: 14px; }}
-.cell:hover .plate {{ border-color: rgba(255,255,255,0.32); }}
-.cell.sel .plate {{ background-image: linear-gradient(135deg, rgba(183,156,255,0.34), rgba(127,178,255,0.14)); border-color: rgba(183,156,255,0.9); }}
-.cell label.cn {{ font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.78); }}
-.cell.sel label.cn {{ font-weight: 700; color: {PAL['fg']}; }}
-.cell label.nfi {{ font-family: '{cc.NF}'; font-size: 28px; color: {cc.ACC}; }}
-.fdot {{ background: {cc.ACC}; border-radius: 999px; min-width: 8px; min-height: 8px; box-shadow: 0 0 8px {cc.ACC}; }}
-.fname {{ font-size: 14px; font-weight: 700; }}
-.fcat {{ background: rgba(255,255,255,0.08); border-radius: 999px; padding: 2px 9px; }}
-.fcat label {{ font-family: '{cc.NF}'; font-size: 10px; letter-spacing: 1px; color: rgba(255,255,255,0.7); }}
-.fdesc {{ font-size: 13px; color: rgba(255,255,255,0.5); }}
-.fhint {{ font-size: 12px; color: rgba(255,255,255,0.55); }}
+.search {{ background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 18px; padding: 0px 16px; min-height: 46px; }}
+.search.focus {{ border-color: rgba(183,156,255,0.45); background: rgba(255,255,255,0.08); }}
+.search label.sg {{ font-family: '{cc.NF}'; font-size: 17px; color: rgba(255,255,255,0.55); }}
+.search label.hint {{ font-family: Inter, sans-serif; font-size: 15px; color: rgba(255,255,255,0.42); }}
+.search entry {{ background: none; border: none; box-shadow: none; padding: 4px 8px; font-size: 15px; min-height: 22px; }}
+.tab {{ background: rgba(255,255,255,0.05); border: none; border-radius: 999px; padding: 5px 14px; }}
+.tab label {{ font-size: 12.5px; color: rgba(255,255,255,0.7); }}
+.tabx {{ padding: 4px 2px 0px 2px; border-radius: 8px; }}
+.tabx label.tl {{ font-size: 13.5px; font-weight: 500; color: rgba(255,255,255,0.45); }}
+.tabx:hover label.tl {{ color: rgba(255,255,255,0.8); }}
+.tabx.on label.tl {{ color: {PAL['fg']}; }}
+.uline {{ min-height: 2px; border-radius: 2px; background: transparent; }}
+.tabx.on .uline {{ background-color: {cc.ACC}; }}
+.hair {{ min-height: 1px; background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.10), rgba(255,255,255,0)); }}
+.cell {{ border-radius: 20px; padding: 10px 4px 8px 4px; border: 1px solid transparent; }}
+.cell:hover {{ background-color: rgba(255,255,255,0.05); }}
+.cell.sel {{ background-color: rgba(255,255,255,0.08); border-color: rgba(183,156,255,0.30); }}
+.plate {{ background: rgba(255,255,255,0.05); border: none; border-radius: 17px; min-width: 56px; min-height: 56px; }}
+.plate.sm {{ min-width: 40px; min-height: 40px; border-radius: 13px; }}
+.cell.sel .plate {{ background-color: rgba(183,156,255,0.16); }}
+.cell label.cn {{ font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.72); }}
+.cell.sel label.cn {{ color: {PAL['fg']}; }}
+.cell label.nfi {{ font-family: '{cc.NF}'; font-size: 24px; color: {cc.ACC}; }}
+.fdot {{ background: {cc.ACC}; border-radius: 999px; min-width: 6px; min-height: 6px; }}
+.fname {{ font-size: 13px; font-weight: 600; }}
+.fdesc {{ font-size: 12px; color: rgba(255,255,255,0.42); }}
+.fhint {{ font-size: 11.5px; color: rgba(255,255,255,0.38); }}
 """
 
 
@@ -99,19 +88,30 @@ class Launcher:
 
     snapshot = cc.Panel.snapshot
     on_anim_draw = cc.Panel.on_anim_draw_rect
+    rpath = cc.Panel.rpath
+
     def run_anim(self, opening, dur, done):
         t0 = GLib.get_monotonic_time()
-        dur = dur * float(os.environ.get("ENTROPY_ANIM_SLOW", "1")) * 1.25
+        dur = dur * float(os.environ.get("ENTROPY_ANIM_SLOW", "1")) * (1.7 if opening else 1.5)
+        M = 0.66
 
         def step():
             r = min(1.0, (GLib.get_monotonic_time() - t0) / (dur * 1e6))
+            m = min(1.0, r / M)
+            sm = m * m * (3 - 2 * m)
+            w = max(0.0, (r - M) / (1.0 - M))
+            wob = math.exp(-4.5 * w) * math.sin(2 * math.pi * 1.7 * w) if w > 0 else 0.0
             if opening:
-                sm = r * r * (3 - 2 * r)
-                self.anim_p = sm + 0.045 * math.sin(math.pi * max(0.0, (r - 0.55) / 0.45))
+                self.anim_p = sm
+                self.anim_wob = wob
+                self.anim_rip = (9.0 * math.sin(math.pi * m) ** 1.5 + 3.0 * math.exp(-4.5 * w) * (1 if w > 0 else 0), 16.0 * r)
             else:
-                self.anim_p = 1.0 - r * r * (3 - 2 * r)
+                self.anim_p = 1.0 - sm
+                self.anim_wob = -0.5 * wob
+                self.anim_rip = (8.0 * math.sin(math.pi * m) ** 1.5, -12.0 * r)
             self.anim_area.queue_draw()
             if r >= 1.0:
+                self.anim_wob, self.anim_rip = 0.0, (0.0, 0.0)
                 done()
                 return False
             return True
@@ -197,12 +197,6 @@ class Launcher:
         self.entry.connect("changed", lambda *_: (self.ph.set_visible(not self.entry.get_text()), self.refresh()))
         sbox.pack_start(gl, False, False, 0)
         sbox.pack_start(ov, True, True, 0)
-        for kk in ("Tab", "Esc"):
-            kb = Gtk.Box()
-            kb.get_style_context().add_class("kbd")
-            kb.set_valign(Gtk.Align.CENTER)
-            kb.pack_start(Gtk.Label(label=kk), False, False, 0)
-            sbox.pack_start(kb, False, False, 0)
         row.pack_start(sbox, True, True, 0)
         self.view_btn = self.ibtn("list", self.toggle_view, "Alternar grade/lista")
         row.pack_start(self.view_btn, False, False, 0)
@@ -224,7 +218,6 @@ class Launcher:
             cl = Gtk.Label(label="–")
             cnt.pack_start(cl, False, False, 0)
             h.pack_start(tl, False, False, 0)
-            h.pack_start(cnt, False, False, 0)
             ul = Gtk.Box()
             ul.get_style_context().add_class("uline")
             v.pack_start(h, False, False, 0)
@@ -256,12 +249,11 @@ class Launcher:
         secrow.pack_start(self.sec_lbl, False, False, 0)
         secrow.pack_start(sh_, True, True, 0)
         secrow.pack_start(self.sec_cnt, False, False, 0)
-        pad.pack_start(secrow, False, False, 0)
 
         self.scroll = Gtk.ScrolledWindow()
         self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.scroll.set_shadow_type(Gtk.ShadowType.NONE)
-        self.scroll.set_size_request(-1, sc(360))
+        self.scroll.set_size_request(-1, sc(330))
         self.flow = Gtk.FlowBox()
         self.flow.set_selection_mode(Gtk.SelectionMode.NONE)
         self.flow.set_homogeneous(True)
@@ -290,19 +282,10 @@ class Launcher:
         self.f_desc.set_max_width_chars(30)
         foot.pack_start(dot, False, False, 0)
         foot.pack_start(self.f_name, False, False, 0)
-        foot.pack_start(catb, False, False, 0)
         foot.pack_start(self.f_desc, True, True, 0)
-        for kk, ll in (("↵", "abrir"), ("Tab", "aba"), ("Esc", "fechar")):
-            hb = Gtk.Box(spacing=sc(6))
-            kb = Gtk.Box()
-            kb.get_style_context().add_class("kbd")
-            kb.set_valign(Gtk.Align.CENTER)
-            kb.pack_start(Gtk.Label(label=kk), False, False, 0)
-            lb = Gtk.Label(label=ll)
-            lb.get_style_context().add_class("fhint")
-            hb.pack_start(kb, False, False, 0)
-            hb.pack_start(lb, False, False, 0)
-            foot.pack_start(hb, False, False, 0)
+        fh = Gtk.Label(label="↵ abrir   ·   Esc fechar")
+        fh.get_style_context().add_class("fhint")
+        foot.pack_start(fh, False, False, 0)
         pad.pack_start(foot, False, False, 0)
 
         win.connect("key-press-event", self.on_key)

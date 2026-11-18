@@ -18,6 +18,6 @@ void main() {
     float w = 1.0 - 0.97 * pinch * pinch;
     float sx = (uv.x - 0.5) / w + 0.5;
     if (sx < 0.0 || sx > 1.0) { fragColor = vec4(0.0); return; }
-    float a = 1.0 - smoothstep(0.82, 1.0, progress);
+    float a = 1.0 - smoothstep(0.0, 0.6, progress);
     fragColor = texture(tex, vec2(sx, t)) * a;
 }
