@@ -24,6 +24,25 @@ def monitores():
     return out
 
 
+def camadas():
+    """posição real (coordenadas lógicas do monitor) de cada widget: {nome: (monitor, cx, cy, w, h)}"""
+    out = {}
+    try:
+        data = json.loads(run("hyprctl", "layers", "-j") or "{}")
+        mons = {m["name"]: (m["x"], m["y"]) for m in json.loads(run("hyprctl", "monitors", "-j") or "[]")}
+    except Exception:
+        return out
+    for mon, d in data.items():
+        for lv in d.get("levels", {}).values():
+            for l in lv:
+                ns = l.get("namespace", "")
+                if ns.startswith("noctalia-desktop-widget-") and mon in mons:
+                    nome = ns.rsplit("-", 1)[-1]
+                    mx, my = mons[mon]
+                    out[nome] = (mon, l["x"] - mx + l["w"] / 2.0, l["y"] - my + l["h"] / 2.0, max(40.0, l["w"]), max(24.0, l["h"]))
+    return out
+
+
 def tamanho_imagem(path):
     s = run("ffprobe", "-v", "error", "-select_streams", "v:0",
             "-show_entries", "stream=width,height", "-of", "csv=p=0", path)
@@ -82,7 +101,10 @@ def main():
     mons = monitores()
     base = open(CFG).read()
     decisoes = {}
+    reais = camadas()
     for nome, out, cx, cy, bw, bh in widgets(base):
+        if nome in reais:   # usa onde o widget realmente está (o config pode estar desatualizado)
+            out, cx, cy, bw, bh = reais[nome]
         if out not in mons:
             continue
         wp = run("noctalia", "msg", "wallpaper-get", out)
