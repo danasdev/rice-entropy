@@ -118,7 +118,7 @@ def main():
     # wallpapers animados de exemplo (shaders e loop de vídeo)
     lw = os.path.join(REPO, "live-wallpapers")
     shutil.rmtree(lw, ignore_errors=True)
-    for nome in ("aurora", "ondas", "loop-fluido", "ascii-terreno"):
+    for nome in ("aurora", "ondas", "loop-fluido", "ascii-terreno", "ascii-spiderman"):
         src = os.path.join(HOME, ".local/share/entropy/wallpapers", nome)
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(lw, nome), ignore=shutil.ignore_patterns("preview.jpg"))

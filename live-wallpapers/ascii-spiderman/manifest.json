@@ -1,0 +1,1 @@
+{"type": "shader", "shader": "ascii-spiderman.frag", "channels": ["spiderman.png"], "atlas": {"chars": " .·:;+=*xX#%@", "cell": 48}}
