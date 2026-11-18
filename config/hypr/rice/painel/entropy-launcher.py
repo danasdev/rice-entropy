@@ -344,6 +344,13 @@ class Launcher:
         self.visible, self.closing, self.ready = True, False, False
         self.write_state(True)
         self.pick_monitor(monitor)
+        self.pill = self.dock_pill()
+        if self.pill:
+            self.grab_dock(self.pill)
+            self.outer.set_margin_bottom(max(4, int(self.mon_y + self.mon_h - (self.pill[1] + self.pill[3]))))
+        else:
+            self.dock_img = None
+            self.outer.set_margin_bottom(self.RES)
         self.recent = load_recent()
         self.apps = self.read_apps()
         self.cat = None
@@ -357,9 +364,8 @@ class Launcher:
         self.entry.grab_focus()
         GLib.timeout_add(90, self.anim_open)
 
-    def morph_origin(self):
-        W, H = self.outer.get_allocated_width(), self.outer.get_allocated_height()
-        cx, cy = W / 2.0, H - 34.0
+    def dock_pill(self):
+        """retângulo (lógico) da pílula do dock no monitor atual, ou None"""
         try:
             layers = json.loads(sh("hyprctl", "layers", "-j"))
             dock = None
@@ -369,12 +375,38 @@ class Launcher:
                             and l["y"] + l["h"] <= self.mon_y + self.mon_h + 2 and l["y"] < self.mon_y + self.mon_h - 40):
                         dock = l
             if dock:
-                gx, gy = dock["x"] + 77, dock["y"] + dock["h"] - 37
-                cx = gx - (self.mon_x + (self.mon_w - W) / 2.0)
-                cy = gy - (self.mon_y + self.mon_h - H)
+                return (dock["x"] + 45.0, dock["y"] + 66.0, dock["w"] - 90.0, dock["h"] - 74.0)
         except Exception:
             pass
-        return (cx - 23.0, cy - 23.0, 46.0, 46.0, 15.0)
+        return None
+
+    def grab_dock(self, pill):
+        """foto da pílula do dock (para ela se desfazer dentro do menu)"""
+        self.dock_img = None
+        try:
+            n = json.loads(sh("hyprctl", "activeworkspace", "-j")).get("windows", 1)
+            if n:
+                return   # com janelas o dock fica escondido
+            x, y, w, h = pill
+            png = subprocess.run(["grim", "-g", f"{int(x)},{int(y)} {int(w)}x{int(h)}", "-"], capture_output=True, timeout=2).stdout
+            import io
+            self.dock_img = cairo.ImageSurface.create_from_png(io.BytesIO(png))
+            self.dock_scale = self.dock_img.get_width() / max(1.0, w)
+        except Exception:
+            self.dock_img = None
+
+    def morph_target(self):
+        x, y, w, h, r = cc.Panel.morph_target_rect(self)
+        return (x + 6, y + 6, w, h, r)
+
+    def morph_origin(self):
+        ww, wh = self.wstack.get_allocated_width(), self.wstack.get_allocated_height()
+        ox0 = self.mon_x + (self.mon_w - ww) / 2.0
+        oy0 = self.mon_y + self.mon_h - wh
+        pill = self.pill
+        if pill is None:
+            return (ww / 2.0 - 23.0, wh - 60.0, 46.0, 46.0, 15.0)
+        return (pill[0] - ox0, pill[1] - oy0, pill[2], pill[3], min(24.0, pill[3] / 2.0))
 
     def set_input(self, empty=False):
         try:

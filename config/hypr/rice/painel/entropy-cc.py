@@ -601,6 +601,19 @@ class Panel:
         self.rrect(cr, x, y, w, h, r)
         cr.set_source_rgba(self.morph_rgba[0], self.morph_rgba[1], self.morph_rgba[2], fa)
         cr.fill()
+        di = getattr(self, "dock_img", None)
+        da = 1.0 - self.smoothstep(0.0, 0.32, pc)
+        if di is not None and da > 0.01:
+            sc_ = getattr(self, "dock_scale", 1.0)
+            iw, ih = di.get_width() / sc_, di.get_height() / sc_
+            cr.save()
+            self.rrect(cr, x, y, w, h, r)
+            cr.clip()
+            cr.translate(x + (w - iw) / 2.0, y + h - ih)
+            cr.scale(1.0 / sc_, 1.0 / sc_)
+            cr.set_source_surface(di, 0, 0)
+            cr.paint_with_alpha(da)
+            cr.restore()
         ca = self.smoothstep(0.22, 0.78, pc)
         if ca > 0.01:
             cr.save()
