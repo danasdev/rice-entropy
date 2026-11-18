@@ -30,10 +30,10 @@ void mainImage(out vec4 o, in vec2 fc) {
     float lum = dot(s.rgb, vec3(0.299, 0.587, 0.114));
     float b = clamp(h * 0.55 + lum * 1.1, 0.0, 0.999);
     if (h < 0.02 && lum < 0.05) b = 0.0;
-    float n = iChannelRes1.x / (iChannelRes1.y * 0.5);
+    float n = iAtlasRes.x / (iAtlasRes.y * 0.5);
     float idx = floor(b * n);
     vec2 auv = vec2((idx + loc.x) / n, 1.0 - loc.y);
-    float gl = texture(iChannel1, auv).a;
+    float gl = texture(iAtlas, auv).a;
     vec3 tint = mix(vec3(0.55, 0.65, 0.95), s.rgb * 1.5, 0.75);        // cores do traje (vermelho / azul)
     tint += vec3(0.25) * smoothstep(0.85, 1.0, lum);                      // olhos e fios brilham
     vec3 bg = vec3(0.012, 0.016, 0.04);

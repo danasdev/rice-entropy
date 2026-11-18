@@ -100,8 +100,13 @@ uniform float iEnergy;
 uniform vec4 iDrops[32];   // gotas do mouse: xy = posição (px), z = idade (s), w = força
 uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
+uniform sampler2D iChannel2;
+uniform sampler2D iAtlas;      // atlas de glifos (manifest "atlas")
 uniform vec3 iChannelRes0;
 uniform vec3 iChannelRes1;
+uniform vec3 iChannelRes2;
+uniform vec3 iAtlasRes;
+uniform vec4 iP0;              // manifest "params": até 4 números livres
 out vec4 outColor;
 """
 
@@ -320,7 +325,7 @@ class Surface:
             if kind == "shader":
                 src = open(os.path.join(base, manifest["shader"])).read()
                 self.res["prog"] = make_program(HEAD + src + TOY_MAIN)
-                chans = list(manifest.get("channels", [])[:2])
+                chans = list(manifest.get("channels", [])[:3])
                 for i, ch in enumerate(chans):
                     path = os.path.join(base, ch)
                     if path.endswith((".mp4", ".webm", ".mkv", ".gif")):
@@ -329,11 +334,8 @@ class Surface:
                         w, h, px = load_image(path)
                         self.res["tex"].append((new_texture(w, h, True, px), (w, h)))
                 if manifest.get("atlas"):
-                    while len(self.res["tex"]) < 1:
-                        w, h = 2, 2
-                        self.res["tex"].append((new_texture(w, h, True, b"\x00" * 16), (w, h)))
                     w, h, px = glyph_atlas(manifest["atlas"])
-                    self.res["tex"] = self.res["tex"][:1] + [(new_texture(w, h, True, px), (w, h))]
+                    self.res["atlas"] = (new_texture(w, h, True, px), (w, h))
             else:
                 self.res["prog"] = make_program(LAYER_FRAG)
                 if kind == "image":
@@ -382,7 +384,7 @@ class Surface:
         kind = self.manifest.get("type", "shader")
         par = float(self.manifest.get("parallax", 0.0))
         if kind == "shader":
-            for i in range(2):
+            for i in range(3):
                 glActiveTexture(GL_TEXTURE0 + i)
                 if i < len(r["tex"]):
                     tex, size = r["tex"][i]
@@ -390,7 +392,16 @@ class Surface:
                         tex, size = self.video_tex()
                     glBindTexture(GL_TEXTURE_2D, tex)
                     glUniform3f(self.uni(prog, f"iChannelRes{i}"), size[0], size[1], 1.0)
+                else:
+                    glUniform3f(self.uni(prog, f"iChannelRes{i}"), 0.0, 0.0, 1.0)
                 glUniform1i(self.uni(prog, f"iChannel{i}"), i)
+            glActiveTexture(GL_TEXTURE0 + 3)
+            if r.get("atlas"):
+                glBindTexture(GL_TEXTURE_2D, r["atlas"][0])
+                glUniform3f(self.uni(prog, "iAtlasRes"), r["atlas"][1][0], r["atlas"][1][1], 1.0)
+            glUniform1i(self.uni(prog, "iAtlas"), 3)
+            pr = (list(self.manifest.get("params", [])) + [0, 0, 0, 0])[:4]
+            glUniform4f(self.uni(prog, "iP0"), *[float(v) for v in pr])
             glDrawArrays(GL_TRIANGLES, 0, 3)
             self.maybe_preview(W, H)
         else:

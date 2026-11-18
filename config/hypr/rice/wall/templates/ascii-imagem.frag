@@ -37,10 +37,10 @@ void mainImage(out vec4 o, in vec2 fc) {
     float h = hit > 0.0 ? hit : hmap(p);
     vec3 src = texture(iChannel0, coverUV(clamp(p, 0.0, 1.0))).rgb;
     float b = pow(smoothstep(0.08, 0.95, h), 1.25);
-    float n = iChannelRes1.x / (iChannelRes1.y * 0.5);
+    float n = iAtlasRes.x / (iAtlasRes.y * 0.5);
     float idx = floor(b * n);
     vec2 auv = vec2((idx + loc.x) / n, 1.0 - loc.y);
-    float gl = texture(iChannel1, auv).a;
+    float gl = texture(iAtlas, auv).a;
     vec3 tint = mix(ramp(h), src * 1.4, 0.55);     // mistura a paleta com as cores da foto
     vec3 bg = vec3(0.01, 0.015, 0.03);
     vec3 outc = bg + tint * gl * (0.4 + 0.8 * b) + src * 0.06;

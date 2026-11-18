@@ -42,10 +42,10 @@ void mainImage(out vec4 o, in vec2 fc) {
     float b = smoothstep(0.12, 0.98, h * 0.9 + (light - 0.5) * 0.5 + 0.05);
     b = pow(b, 1.15);                                  // vales ficam vazios, cumes cheios
     b = b * (0.92 + 0.08 * sin(iTime * 0.7 + cid.x * 0.4 + cid.y * 0.2));      // cintilar leve
-    float n = iChannelRes1.x / (iChannelRes1.y * 0.5);                          // nº de glifos na rampa
+    float n = iAtlasRes.x / (iAtlasRes.y * 0.5);                          // nº de glifos na rampa
     float idx = floor(clamp(b, 0.0, 0.999) * n);
     vec2 auv = vec2((idx + loc.x) / n, 1.0 - loc.y);
-    float gl = texture(iChannel1, auv).a;
+    float gl = texture(iAtlas, auv).a;
     vec3 col = ramp(h) * (0.45 + 0.75 * light);
     vec3 bg = mix(vec3(0.012, 0.02, 0.05), vec3(0.03, 0.05, 0.11), fc.y / iResolution.y);
     vec3 outc = bg + col * gl * (0.35 + 0.85 * b) + col * 0.05 * b;

@@ -275,9 +275,10 @@ class UI:
         m = manifest(name)
         base = os.path.join(LIB, name)
         if c.get_active() and m.get("type") == "image":
-            shutil.copy2(os.path.join(HERE, "templates", "ascii-imagem.frag"), os.path.join(base, "ascii.frag"))
-            m = {"type": "shader", "shader": "ascii.frag", "channels": [m["file"]],
-                 "atlas": {"chars": " .·:;+=*xX#%@", "cell": 48}, "was": m}
+            shutil.copy2(os.path.join(HERE, "templates", "ascii-mosaico.frag"), os.path.join(base, "ascii-mosaico.frag"))
+            run(sys.executable, os.path.join(HERE, "entropy-wall-depth.py"), os.path.join(base, m["file"]), os.path.join(base, "depth.png"))
+            m = {"type": "shader", "shader": "ascii-mosaico.frag", "channels": [m["file"], "depth.png"],
+                 "atlas": {"chars": " .·:;+=*xX#%@", "cell": 48}, "params": [8, 0.18, 0, 0.8], "was": m}
         elif not c.get_active() and "was" in m:
             m = m["was"]
         else:
