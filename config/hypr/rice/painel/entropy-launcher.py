@@ -87,39 +87,44 @@ class Launcher:
     RES = 84   # espaço reservado embaixo (dock + respiro); o painel fica logo acima
 
     snapshot = cc.Panel.snapshot
-    on_anim_draw = cc.Panel.on_anim_draw_rect
-    rpath = cc.Panel.rpath
-
-    def run_anim(self, opening, dur, done):
-        t0 = GLib.get_monotonic_time()
-        dur = dur * float(os.environ.get("ENTROPY_ANIM_SLOW", "1")) * (1.7 if opening else 1.5)
-        M = 0.66
-
-        def step():
-            r = min(1.0, (GLib.get_monotonic_time() - t0) / (dur * 1e6))
-            m = min(1.0, r / M)
-            sm = m * m * (3 - 2 * m)
-            w = max(0.0, (r - M) / (1.0 - M))
-            wob = math.exp(-4.5 * w) * math.sin(2 * math.pi * 1.7 * w) if w > 0 else 0.0
-            if opening:
-                self.anim_p = sm
-                self.anim_wob = wob
-                self.anim_rip = (9.0 * math.sin(math.pi * m) ** 1.5 + 3.0 * math.exp(-4.5 * w) * (1 if w > 0 else 0), 16.0 * r)
-            else:
-                self.anim_p = 1.0 - sm
-                self.anim_wob = -0.5 * wob
-                self.anim_rip = (8.0 * math.sin(math.pi * m) ** 1.5, -12.0 * r)
-            self.anim_area.queue_draw()
-            if r >= 1.0:
-                self.anim_wob, self.anim_rip = 0.0, (0.0, 0.0)
-                done()
-                return False
-            return True
-        GLib.timeout_add(16, step)
-    prepare_morph = cc.Panel.prepare_morph_rect
-    morph_target = cc.Panel.morph_target_rect
+    PF = 30
+    jelly_dur = 0.62
+    jelly, isl_snap, flip_h = None, None, 0.0
+    run_anim = cc.Panel.run_anim
+    run_jelly = cc.Panel.run_jelly
+    draw_jelly = cc.Panel.draw_jelly
+    notch_path = cc.Panel.notch_path
+    draw_notch = cc.Panel.draw_notch
+    prepare_morph = cc.Panel.prepare_morph
     rrect = staticmethod(cc.Panel.rrect)
     smoothstep = staticmethod(cc.Panel.smoothstep)
+
+    def on_anim_draw(self, widget, cr):
+        self.flip_h = float(widget.get_allocated_height())
+        return cc.Panel.on_anim_draw(self, widget, cr)
+
+    def panel_rect(self):
+        pt = self.morph_widget.translate_coordinates(self.outer, 0, 0)
+        return pt[0], pt[1], self.morph_widget.get_allocated_width(), self.morph_widget.get_allocated_height()
+
+    def on_bg_draw(self, widget, cr):
+        if getattr(self, "snapping", False):
+            return False
+        x, y, w, h = self.panel_rect()
+        if w < 50:
+            return False
+        Ho = float(widget.get_allocated_height())
+        self.flip_h = Ho
+        self.draw_notch(cr, widget.get_allocated_width() / 2.0, w / 2.0, Ho - y, self.PF, sc(36), self.morph_rgba[3], 0.18)
+        return False
+
+    def morph_target(self):
+        x, y, w, h = self.panel_rect()
+        Ho = float(self.outer.get_allocated_height())
+        return {"hw": w / 2.0, "D": Ho - y, "f": float(self.PF), "r": float(sc(36)), "a": self.morph_rgba[3]}
+
+    def morph_origin(self):
+        return {"hw": 62.0, "D": 8.0, "f": 26.0, "r": 12.0, "a": self.morph_rgba[3]}
 
     def __init__(self, daemon):
         self.daemon, self.visible, self.closing, self.ready = daemon, False, False, False
@@ -159,17 +164,223 @@ class Launcher:
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         outer = self.outer = Gtk.Box()
-        for side, v in (("start", 6), ("end", 6), ("top", 6), ("bottom", self.RES)):
+        for side, v in (("start", self.PF + 6), ("end", self.PF + 6), ("top", 6), ("bottom", 0)):
             getattr(outer, f"set_margin_{side}")(v)
         self.wstack = Gtk.Stack()
         self.anim_area = Gtk.DrawingArea()
         self.anim_area.connect("draw", self.on_anim_draw)
+        outer.connect("draw", self.on_bg_draw)
         self.wstack.add_named(outer, "real")
         self.wstack.add_named(self.anim_area, "anim")
         win.add(self.wstack)
 
         panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        panel.get_style_context().add_class("panel")
+        panel.get_style_context().add_class("panelx")
+        panel.set_size_request(sc(860), -1)
+        outer.pack_start(panel, True, True, 0)
+        self.morph_widget = panel
+        pad = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=sc(11))
+        for side in ("start", "end", "top", "bottom"):
+            getattr(pad, f"set_margin_{side}")(sc(20))
+        panel.pack_start(pad, True, True, 0)
+
+        row = Gtk.Box(spacing=sc(10))
+        sbox = Gtk.Box(spacing=sc(8))
+        sbox.get_style_context().add_class("search")
+        gl = Gtk.Label(label=G["search"])
+        gl.get_style_context().add_class("sg")
+        sbox.get_style_context().add_class("focus")
+        self.entry = Gtk.Entry()
+        self.entry.set_hexpand(True)
+        self.ph = Gtk.Label(label="Buscar apps, calcular (=), executar (>) ou pesquisar na web…", xalign=0)
+        self.ph.get_style_context().add_class("hint")
+        self.ph.set_halign(Gtk.Align.START)
+        self.ph.set_margin_start(sc(8))
+        ov = Gtk.Overlay()
+        ov.add(self.entry)
+        ov.add_overlay(self.ph)
+        ov.set_overlay_pass_through(self.ph, True)
+        self.entry.connect("changed", lambda *_: (self.ph.set_visible(not self.entry.get_text()), self.refresh()))
+        sbox.pack_start(gl, False, False, 0)
+        sbox.pack_start(ov, True, True, 0)
+        row.pack_start(sbox, True, True, 0)
+        self.view_btn = self.ibtn("list", self.toggle_view, "Alternar grade/lista")
+        row.pack_start(self.view_btn, False, False, 0)
+        row.pack_start(self.ibtn("cog", lambda: (fire("noctalia", "msg", "settings-open"), self.close()), "Configurações"), False, False, 0)
+        row.pack_start(self.ibtn("power", lambda: (fire(os.path.join(HERE, "entropy-cc-toggle"), "", "session"), self.close()), "Sessão"), False, False, 0)
+        pad.pack_start(row, False, False, 0)
+
+        tabs = Gtk.Box(spacing=sc(22))
+        self.tab_btns, self.tab_cnt = {}, {}
+        for key, text in (("recent", "Recentes"), ("all", "Todos"), ("cats", "Categorias"), ("clip", "Clipboard")):
+            b = Gtk.Button()
+            b.get_style_context().add_class("tabx")
+            v = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=sc(8))
+            h = Gtk.Box(spacing=sc(8))
+            tl = Gtk.Label(label=text)
+            tl.get_style_context().add_class("tl")
+            cnt = Gtk.Box()
+            cnt.get_style_context().add_class("cnt")
+            cl = Gtk.Label(label="–")
+            cnt.pack_start(cl, False, False, 0)
+            h.pack_start(tl, False, False, 0)
+            ul = Gtk.Box()
+            ul.get_style_context().add_class("uline")
+            v.pack_start(h, False, False, 0)
+            v.pack_start(ul, False, False, 0)
+            b.add(v)
+            b.connect("clicked", lambda _b, k=key: self.set_tab(k))
+            self.tab_btns[key] = b
+            self.tab_cnt[key] = cl
+            tabs.pack_start(b, False, False, 0)
+        self.back_btn = Gtk.Button()
+        self.back_btn.get_style_context().add_class("tab")
+        self.back_btn.add(Gtk.Label(label=G["back"] + "  Categorias"))
+        self.back_btn.connect("clicked", lambda *_: self.set_cat(None))
+        self.back_btn.set_no_show_all(True)
+        tabs.pack_start(self.back_btn, False, False, 0)
+        pad.pack_start(tabs, False, False, 0)
+        hair = Gtk.Box()
+        hair.get_style_context().add_class("hair")
+        pad.pack_start(hair, False, False, 0)
+
+        secrow = Gtk.Box(spacing=sc(12))
+        self.sec_lbl = Gtk.Label(label="RECENTES")
+        self.sec_lbl.get_style_context().add_class("seclbl")
+        sh_ = Gtk.Box()
+        sh_.get_style_context().add_class("hair")
+        sh_.set_valign(Gtk.Align.CENTER)
+        self.sec_cnt = Gtk.Label(label="")
+        self.sec_cnt.get_style_context().add_class("seccnt")
+        secrow.pack_start(self.sec_lbl, False, False, 0)
+        secrow.pack_start(sh_, True, True, 0)
+        secrow.pack_start(self.sec_cnt, False, False, 0)
+
+        self.scroll = Gtk.ScrolledWindow()
+        self.scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.scroll.set_shadow_type(Gtk.ShadowType.NONE)
+        self.scroll.set_size_request(-1, sc(330))
+        self.flow = Gtk.FlowBox()
+        self.flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        self.flow.set_homogeneous(True)
+        self.flow.set_row_spacing(sc(6))
+        self.flow.set_column_spacing(sc(6))
+        self.flow.set_valign(Gtk.Align.START)
+        for m_ in ("start", "end", "top", "bottom"):
+            getattr(self.flow, f"set_margin_{m_}")(sc(14))
+        self.scroll.add(self.flow)
+        pad.pack_start(self.scroll, True, True, 0)
+
+        foot = Gtk.Box(spacing=sc(12))
+        dot = Gtk.Box()
+        dot.get_style_context().add_class("fdot")
+        dot.set_valign(Gtk.Align.CENTER)
+        self.f_name = Gtk.Label(label="", xalign=0)
+        self.f_name.get_style_context().add_class("fname")
+        catb = Gtk.Box()
+        catb.get_style_context().add_class("fcat")
+        catb.set_valign(Gtk.Align.CENTER)
+        self.f_cat = Gtk.Label(label="")
+        catb.pack_start(self.f_cat, False, False, 0)
+        self.f_desc = Gtk.Label(label="", xalign=0)
+        self.f_desc.get_style_context().add_class("fdesc")
+        self.f_desc.set_ellipsize(3)
+        self.f_desc.set_max_width_chars(30)
+        foot.pack_start(dot, False, False, 0)
+        foot.pack_start(self.f_name, False, False, 0)
+        foot.pack_start(self.f_desc, True, True, 0)
+        fh = Gtk.Label(label="↵ abrir   ·   Esc fechar")
+        fh.get_style_context().add_class("fhint")
+        foot.pack_start(fh, False, False, 0)
+        pad.pack_start(foot, False, False, 0)
+
+        win.connect("key-press-event", self.on_key)
+        win.set_opacity(0.0)
+        self.wstack.show_all()
+        self.back_btn.hide()
+
+    def ibtn(self, key, cb, tip):
+        b = Gtk.Button()
+        b.get_style_context().add_class("round")
+        b.add(Gtk.Label(label=G.get(key) or cc.I.get(key, "?")))
+        b.set_tooltip_text(tip)
+        b.connect("clicked", lambda *_: cb())
+        return b
+
+    # ---------- abrir / fechar ----------
+    def pick_monitor(self, want):
+        disp = Gdk.Display.get_default()
+        try:
+            mons = json.loads(sh("hyprctl", "monitors", "-j"))
+            foc = next((m for m in mons if m["name"] == want), None) or next((m for m in mons if m.get("focused")), mons[0])
+            self.mon_name, self.mon_x, self.mon_y = foc["name"], int(foc["x"]), int(foc["y"])
+            self.mon_w, self.mon_h = int(foc["width"] / foc["scale"]), int(foc["height"] / foc["scale"])
+            for i in range(disp.get_n_monitors()):
+                gm = disp.get_monitor(i).get_geometry()
+                if gm.x == int(foc["x"]) and gm.y == int(foc["y"]):
+                    GtkLayerShell.set_monitor(self.win, disp.get_monitor(i))
+                    return
+        except Exception:
+            pass
+
+    def write_state(self, on):
+        try:
+            open(OPENF, "w").write("1" if on else "0")
+        except OSError:
+            pass
+
+    def open_launcher(self, monitor=None):
+        if self.visible:
+            return
+        self.visible, self.closing, self.ready = True, False, False
+        self.write_state(True)
+        self.pick_monitor(monitor)
+        self.recent = load_recent()
+        self.snap, self.anim_p = None, 0.0
+        self.mon_name, self.mon_x, self.mon_y, self.mon_w, self.mon_h = None, 0, 0, 1280, 720
+        self.apps = []
+        self.clip_cache = []
+        self.build()
+        if not daemon:
+            self.open_launcher()
+
+    # ---------- janela ----------
+    def build(self):
+        win = self.win = Gtk.Window()
+        win.set_app_paintable(True)
+        vis = win.get_screen().get_rgba_visual()
+        if vis:
+            win.set_visual(vis)
+        GtkLayerShell.init_for_window(win)
+        GtkLayerShell.set_namespace(win, "entropy-launcher")
+        GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+        GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_margin(win, GtkLayerShell.Edge.BOTTOM, 0)
+        try:
+            a = float(open(cc.ALPHA).read().strip())
+        except Exception:
+            a = 0.38
+        su_ = cc.hex2rgb(PAL["surface"])
+        self.morph_rgba = (su_[0] / 255, su_[1] / 255, su_[2] / 255, min(0.80, 0.40 + (a - 0.38) * 0.8))
+        self.fg_rgb = tuple(c / 255 for c in cc.hex2rgb(PAL["fg"]))
+        prov = Gtk.CssProvider()
+        prov.load_from_data(make_css(min(0.78, 0.30 + (a - 0.38) * 0.9)).encode())
+        Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+        outer = self.outer = Gtk.Box()
+        for side, v in (("start", self.PF + 6), ("end", self.PF + 6), ("top", 6), ("bottom", 0)):
+            getattr(outer, f"set_margin_{side}")(v)
+        self.wstack = Gtk.Stack()
+        self.anim_area = Gtk.DrawingArea()
+        self.anim_area.connect("draw", self.on_anim_draw)
+        outer.connect("draw", self.on_bg_draw)
+        self.wstack.add_named(outer, "real")
+        self.wstack.add_named(self.anim_area, "anim")
+        win.add(self.wstack)
+
+        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        panel.get_style_context().add_class("panelx")
         panel.set_size_request(sc(860), -1)
         outer.pack_start(panel, True, True, 0)
         self.morph_widget = panel
@@ -389,26 +600,13 @@ class Launcher:
         except Exception:
             self.dock_img = None
 
-    def morph_target(self):
-        x, y, w, h, r = cc.Panel.morph_target_rect(self)
-        return (x + 6, y + 6, w, h, r)
-
-    def morph_origin(self):
-        ww, wh = self.wstack.get_allocated_width(), self.wstack.get_allocated_height()
-        ox0 = self.mon_x + (self.mon_w - ww) / 2.0
-        oy0 = self.mon_y + self.mon_h - wh
-        pill = self.pill
-        if pill is None:
-            return (ww / 2.0 - 23.0, wh - 60.0, 46.0, 46.0, 15.0)
-        return (pill[0] - ox0, pill[1] - oy0, pill[2], pill[3], min(24.0, pill[3] / 2.0))
-
     def set_input(self, empty=False):
         try:
             if empty:
                 reg = cairo.Region()
             else:
-                tx, ty, tw, th, _r = self.target
-                reg = cairo.Region(cairo.RectangleInt(int(tx), int(ty), int(tw) + 1, int(th) + 1))
+                pt = self.morph_widget.translate_coordinates(self.wstack, 0, 0)
+                reg = cairo.Region(cairo.RectangleInt(int(pt[0]), int(pt[1]), int(self.morph_widget.get_allocated_width()) + 1, int(self.morph_widget.get_allocated_height()) + 1))
             self.win.get_window().input_shape_combine_region(reg, 0, 0)
         except Exception:
             pass
@@ -426,7 +624,7 @@ class Launcher:
                 self.set_input()
                 self.entry.grab_focus()
                 self.ready = True
-            self.run_anim(True, 0.52, done)
+            self.run_anim(True, 0.5, done)
         except Exception as e:
             print("anim_open:", repr(e), flush=True)
             self.win.set_opacity(1.0)
@@ -442,11 +640,14 @@ class Launcher:
             self.set_input(empty=True)
             self.anim_p = 1.0
             self.wstack.set_visible_child_name("anim")
-            self.run_anim(False, 0.36, self.after_close)
-        except Exception:
+            self.run_jelly(lambda early: None if early else self.after_close())
+        except Exception as e:
+            print("close:", repr(e), flush=True)
+            self.jelly = None
             self.after_close()
 
     def after_close(self):
+        self.jelly = None
         self.write_state(False)
         if self.daemon:
             self.win.hide()

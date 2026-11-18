@@ -11,7 +11,7 @@ yes | hyprpm add https://github.com/hyprnux/hyprglass || true
 hyprpm enable hyprglass
 
 say "Tema de ícones Entropy (gerado com a paleta do wallpaper)"
-ENTROPY_ICON_STYLE=logo python3 "$HOME/.config/hypr/rice/painel/gen-icons.py" || true
+ENTROPY_ICON_STYLE=original python3 "$HOME/.config/hypr/rice/painel/gen-icons.py" || true
 gsettings set org.gnome.desktop.interface icon-theme 'Entropy' || true
 
 say "Recarregando"

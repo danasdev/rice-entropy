@@ -253,7 +253,7 @@ def main(style=None, out=None):
     tile_hi = mix(sur, fg, 0.10 if not light else 0.0)
     tile_lo = mix(sur, "#000000", 0.30 if not light else 0.10)
     done = {}
-    for a in Gio.AppInfo.get_all():
+    for a in ([] if style == "original" else Gio.AppInfo.get_all()):
         if not a.should_show():
             continue
         ic = a.get_icon()
@@ -268,7 +268,7 @@ def main(style=None, out=None):
         glyph = BY_ID.get(aid) or next((BY_CAT[c] for c in cat if c in BY_CAT), "cube")
         done[name] = glyph
     # nomes extras usados por janelas/dock
-    for name, glyph in (("claude-desktop", "spark"), ("claude", "spark"), ("kitty", "terminal"), ("entropydash", "e"), ("entropy-apps", "grid")):
+    for name, glyph in ((("entropy-apps", "grid"),) if style == "original" else (("claude-desktop", "spark"), ("claude", "spark"), ("kitty", "terminal"), ("entropydash", "e"), ("entropy-apps", "grid"))):
         done[name] = glyph
     mono = None
     th = None
@@ -295,7 +295,7 @@ def main(style=None, out=None):
                     print("falha", name, e)
             open(os.path.join(APPS, name + ".svg"), "w").write(svg_tilegl(glyph, _hx(mono.tile), acc))
             continue
-        body = svg_glyph(glyph, fg, acc) if style == "glyph" else svg_flat(glyph, fg, acc) if style == "flat" else svg(glyph, tile_hi, tile_lo, fg, acc)
+        body = svg_glyph(glyph, fg, acc) if style in ("glyph", "original") else svg_flat(glyph, fg, acc) if style == "flat" else svg(glyph, tile_hi, tile_lo, fg, acc)
         open(os.path.join(APPS, name + ".svg"), "w").write(body)
     open(os.path.join(OUT, "index.theme"), "w").write(
         "[Icon Theme]\nName=Entropy\nComment=Icones simples em vidro, nas cores do wallpaper\nInherits=Papirus-Dark,Adwaita,hicolor\n"

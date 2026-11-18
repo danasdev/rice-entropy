@@ -455,6 +455,11 @@ class Panel:
         def rp(x, w=1.0):
             return amp * math.sin(k * (hw - abs(x - cx)) - ph) * w if amp > 0.05 else 0.0
 
+        fh = getattr(self, "flip_h", 0.0)
+        mtx = cr.get_matrix()
+        if fh:
+            cr.translate(0, fh)
+            cr.scale(1, -1)
         cr.new_path()
         cr.move_to(x0 - f, 0)
         cr.curve_to(x0 - f * 0.45, 0, x0, yf * 0.42, x0, yf)
@@ -476,6 +481,7 @@ class Panel:
         cr.curve_to(x1, yf * 0.42, x1 + f * 0.45, 0, x1 + f, 0)
         if close:
             cr.close_path()
+        cr.set_matrix(mtx)
 
     def draw_notch(self, cr, cx, hw, D, f, r, alpha, stroke_a, rip=None, lens=0.0):
         cr.push_group()
@@ -581,7 +587,7 @@ class Panel:
 
     def run_jelly(self, done):
         t0 = GLib.get_monotonic_time()
-        dur = 0.95 * float(os.environ.get("ENTROPY_ANIM_SLOW", "1"))
+        dur = getattr(self, "jelly_dur", 0.95) * float(os.environ.get("ENTROPY_ANIM_SLOW", "1"))
         self.jelly = 0.0
         sent = [False]
 
