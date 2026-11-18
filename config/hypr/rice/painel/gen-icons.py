@@ -137,15 +137,24 @@ def analyze(im):
     xm, ym = (x0 + x1) // 2, (y0 + y1) // 2
     pos = [(x0 + 0.10 * w, ym), (x1 - 0.10 * w, ym), (xm, y0 + 0.10 * h), (xm, y1 - 0.10 * h),
            (x0 + 0.28 * w, y0 + 0.28 * h), (x1 - 0.28 * w, y0 + 0.28 * h), (x0 + 0.28 * w, y1 - 0.28 * h), (x1 - 0.28 * w, y1 - 0.28 * h)]
+    edge = [px[int(x), int(y)][:3] for x, y in pos[:4] if px[int(x), int(y)][3] > 200]
+    if len(edge) == 4:
+        em = tuple(sum(c[i] for c in edge) // 4 for i in range(3))
+        if max(math.dist(c, em) for c in edge) < 80:
+            return em, True
     cols = []
     for x, y in pos:
         p = px[int(x), int(y)]
         if p[3] > 200:
             cols.append(p[:3])
-    if len(cols) < 6:
+    if len(cols) < 4:
         return (0, 0, 0), False
     mean = tuple(sum(c[i] for c in cols) // len(cols) for i in range(3))
-    return mean, max(math.dist(c, mean) for c in cols) < 120
+    spread = max(math.dist(c, mean) for c in cols)
+    if len(cols) < 6:
+        # fundo redondo: só as 4 amostras das bordas caem dentro do desenho
+        return mean, spread < 70
+    return mean, spread < 120
 
 
 class Mono:

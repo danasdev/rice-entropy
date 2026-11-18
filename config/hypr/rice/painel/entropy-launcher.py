@@ -48,7 +48,7 @@ EXTRA_CSS = f"""
 .seccnt {{ font-family: '{cc.NF}'; font-size: 11px; color: rgba(255,255,255,0.42); }}
 .cell {{ border-radius: 22px; padding: 12px 4px 10px 4px; border: 1px solid transparent; }}
 .cell:hover {{ background-color: rgba(255,255,255,0.07); }}
-.cell.sel {{ background-image: linear-gradient(180deg, rgba(183,156,255,0.20), rgba(127,178,255,0.06)); border-color: rgba(183,156,255,0.55); box-shadow: 0 10px 28px rgba(183,156,255,0.28); }}
+.cell.sel {{ background-image: linear-gradient(180deg, rgba(183,156,255,0.20), rgba(127,178,255,0.06)); border-color: rgba(183,156,255,0.55); box-shadow: 0 6px 18px rgba(183,156,255,0.26); }}
 .plate {{ background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); border-radius: 19px; min-width: 64px; min-height: 64px; }}
 .plate.sm {{ min-width: 44px; min-height: 44px; border-radius: 14px; }}
 .cell:hover .plate {{ border-color: rgba(255,255,255,0.32); }}
@@ -268,6 +268,8 @@ class Launcher:
         self.flow.set_row_spacing(sc(6))
         self.flow.set_column_spacing(sc(6))
         self.flow.set_valign(Gtk.Align.START)
+        for m_ in ("start", "end", "top", "bottom"):
+            getattr(self.flow, f"set_margin_{m_}")(sc(14))
         self.scroll.add(self.flow)
         pad.pack_start(self.scroll, True, True, 0)
 
@@ -356,6 +358,15 @@ class Launcher:
         self.cat = None
         self.entry.set_text(os.environ.get("ENTROPY_LAUNCHER_Q", ""))
         self.tab = "recent" if self.recent else "all"
+        try:
+            ids = {a["id"] for a in self.apps if a.get("id")} if self.apps and isinstance(self.apps[0], dict) else set()
+            rc = sum(1 for r in self.recent if (not ids or r in ids))
+            self.tab_cnt["recent"].set_text(str(min(rc, 11) if rc else 0))
+            self.tab_cnt["all"].set_text(str(len(self.apps)))
+            self.tab_cnt["cats"].set_text(str(len({a.get("cat") for a in self.apps if isinstance(a, dict)})))
+            self.tab_cnt["clip"].set_text("·")
+        except Exception as e:
+            print("cnt:", repr(e), flush=True)
         self.wstack.set_visible_child_name("real")
         self.win.set_opacity(0.0)
         self.set_tab(self.tab, focus=False)
@@ -615,21 +626,26 @@ class Launcher:
         else:
             h = Gtk.Box(spacing=sc(14))
             h.set_margin_start(sc(8))
+            h.set_margin_end(sc(8))
+            plate.set_halign(Gtk.Align.START)
             h.pack_start(plate, False, False, 0)
             col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
             col.set_valign(Gtk.Align.CENTER)
             n = Gtk.Label(label=it["name"], xalign=0)
             n.set_ellipsize(3)
-            n.set_max_width_chars(48)
+            n.set_width_chars(1)
+            n.set_hexpand(True)
             n.get_style_context().add_class("tname")
             col.pack_start(n, False, False, 0)
             if it.get("desc"):
                 d = Gtk.Label(label=it["desc"], xalign=0)
                 d.set_ellipsize(3)
-                d.set_max_width_chars(60)
+                d.set_width_chars(1)
+                d.set_hexpand(True)
                 d.get_style_context().add_class("small")
                 col.pack_start(d, False, False, 0)
             h.pack_start(col, True, True, 0)
+            b.set_halign(Gtk.Align.FILL)
             b.add(h)
         b.connect("clicked", lambda *_: self.activate(it))
         return b
