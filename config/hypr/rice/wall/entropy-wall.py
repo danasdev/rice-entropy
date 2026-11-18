@@ -54,6 +54,7 @@ glUniform1i = _fn("glUniform1i", None, c_i, c_i)
 glUniform2f = _fn("glUniform2f", None, c_i, c_f, c_f)
 glUniform3f = _fn("glUniform3f", None, c_i, c_f, c_f, c_f)
 glUniform4f = _fn("glUniform4f", None, c_i, c_f, c_f, c_f, c_f)
+glUniform4fv = _fn("glUniform4fv", None, c_i, c_i, c_p)
 glGenTextures = _fn("glGenTextures", None, c_i, ctypes.POINTER(c_u))
 glBindTexture = _fn("glBindTexture", None, c_u, c_u)
 glActiveTexture = _fn("glActiveTexture", None, c_u)
@@ -96,6 +97,7 @@ uniform float iTime;
 uniform vec4 iMouse;
 uniform vec2 iParallax;
 uniform float iEnergy;
+uniform vec4 iDrops[32];   // gotas do mouse: xy = posição (px), z = idade (s), w = força
 uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
 uniform vec3 iChannelRes0;
@@ -207,6 +209,27 @@ def new_texture(w, h, rgba=True, data=None, repeat=False):
     return t.value
 
 
+def glyph_atlas(cfg):
+    """faixa horizontal com os caracteres da rampa (do mais vazio ao mais cheio); o alfa é o glifo"""
+    from PIL import Image, ImageDraw, ImageFont
+    chars = cfg.get("chars", " .:-=+*#%@")
+    ch = int(cfg.get("cell", 32))
+    cw = ch // 2
+    font_path = subprocess.run(["fc-match", "-f", "%{file}", cfg.get("font", "JetBrainsMono Nerd Font Mono:style=Bold")],
+                               capture_output=True, text=True).stdout
+    font = ImageFont.truetype(font_path, int(ch * 0.82))
+    im = Image.new("RGBA", (cw * len(chars), ch), (255, 255, 255, 0))
+    d = ImageDraw.Draw(im)
+    for i, c in enumerate(chars):
+        if c == " ":
+            continue
+        bb = d.textbbox((0, 0), c, font=font)
+        x = i * cw + (cw - (bb[2] - bb[0])) // 2 - bb[0]
+        y = (ch - (bb[3] - bb[1])) // 2 - bb[1]
+        d.text((x, y), c, font=font, fill=(255, 255, 255, 255))
+    return im.width, im.height, im.tobytes()
+
+
 def load_image(path):
     pb = GdkPixbuf.Pixbuf.new_from_file(path)
     if not pb.get_has_alpha():
@@ -297,13 +320,20 @@ class Surface:
             if kind == "shader":
                 src = open(os.path.join(base, manifest["shader"])).read()
                 self.res["prog"] = make_program(HEAD + src + TOY_MAIN)
-                for i, ch in enumerate(manifest.get("channels", [])[:2]):
+                chans = list(manifest.get("channels", [])[:2])
+                for i, ch in enumerate(chans):
                     path = os.path.join(base, ch)
                     if path.endswith((".mp4", ".webm", ".mkv", ".gif")):
                         self.res["tex"].append(("video", None))
                     else:
                         w, h, px = load_image(path)
                         self.res["tex"].append((new_texture(w, h, True, px), (w, h)))
+                if manifest.get("atlas"):
+                    while len(self.res["tex"]) < 1:
+                        w, h = 2, 2
+                        self.res["tex"].append((new_texture(w, h, True, b"\x00" * 16), (w, h)))
+                    w, h, px = glyph_atlas(manifest["atlas"])
+                    self.res["tex"] = self.res["tex"][:1] + [(new_texture(w, h, True, px), (w, h))]
             else:
                 self.res["prog"] = make_program(LAYER_FRAG)
                 if kind == "image":
@@ -345,6 +375,7 @@ class Surface:
         glUniform3f(self.uni(prog, "iResolution"), W, H, 1.0)
         glUniform1f(self.uni(prog, "iTime"), eng.time())
         glUniform1f(self.uni(prog, "iEnergy"), eng.energy)
+        glUniform4fv(self.uni(prog, "iDrops"), 32, eng.drops_for(self, W, H))
         px, py = eng.pointer_for(self)
         glUniform4f(self.uni(prog, "iMouse"), (px * 0.5 + 0.5) * W, (0.5 - py * 0.5) * H, 0.0, 0.0)
         glUniform2f(self.uni(prog, "iParallax"), eng.par[0], eng.par[1])
@@ -427,6 +458,7 @@ class Engine:
         self.t0 = time.monotonic()
         self.speed = 1.0
         self.energy, self.rtime, self.reactive, self.prev = 0.0, 0.0, False, None
+        self.drops, self.last_drop = [], None
         self.preview_path, self.preview_frames, self.fps, self.skip = None, 0, 60, 0
         disp = Gdk.Display.get_default()
         try:
@@ -442,6 +474,18 @@ class Engine:
         for s in self.surfaces:
             s.show()
         GLib.timeout_add(16, self.tick)
+
+    def drops_for(self, surf, W, H):
+        now = time.monotonic()
+        arr = (ctypes.c_float * 128)()
+        for i, (gx, gy, t, st) in enumerate(self.drops[-32:]):
+            arr[i * 4 + 0] = (gx - surf.mx) / surf.mw * W
+            arr[i * 4 + 1] = (1.0 - (gy - surf.my) / surf.mh) * H
+            arr[i * 4 + 2] = now - t
+            arr[i * 4 + 3] = st
+        for i in range(len(self.drops[-32:]), 32):
+            arr[i * 4 + 2] = 999.0
+        return ctypes.cast(arr, c_p)
 
     def time(self):
         # reactive: o tempo só anda quando o mouse se mexe (energia suavizada), senão o fundo fica parado
@@ -462,6 +506,14 @@ class Engine:
                 sp = math.hypot(c[0] - self.prev[0], c[1] - self.prev[1])
                 tgt = max(0.0, min(1.0, sp / 5.0))
                 self.energy += (tgt - self.energy) * (0.35 if tgt > self.energy else 0.025)   # sobe rápido, desce devagar
+            # gotas: cada trecho percorrido pelo mouse vira uma frente de onda que se espalha
+            now = time.monotonic()
+            if self.last_drop is None or math.hypot(c[0] - self.last_drop[0], c[1] - self.last_drop[1]) > 14:
+                sp = math.hypot(c[0] - self.prev[0], c[1] - self.prev[1]) if self.prev else 0.0
+                if self.last_drop is not None:
+                    self.drops.append((c[0], c[1], now, max(0.25, min(1.0, sp / 12.0))))
+                    self.drops = [d for d in self.drops if now - d[2] < 6.0][-32:]
+                self.last_drop = c
             self.prev = c
             self.raw = c
         self.rtime += 0.016 * self.energy * self.speed
@@ -472,6 +524,9 @@ class Engine:
                     s = sf
             tx, ty = self.pointer_for(s)
             self.target = (tx, ty)
+        if os.environ.get("ENTROPY_WALL_PAR"):   # teste: força o parallax (x,y)
+            px_, py_ = os.environ["ENTROPY_WALL_PAR"].split(",")
+            self.target = (float(px_), float(py_))
         # mola suave (levemente amortecida): o fundo "segue" o mouse com inércia
         for i in range(2):
             a = (self.target[i] - self.par[i]) * 90.0 - self.vel[i] * 14.0

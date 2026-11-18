@@ -1,0 +1,1 @@
+{"type": "shader", "shader": "ascii-terreno.frag", "atlas": {"chars": " .·:;+=*xX#%@", "cell": 48}}

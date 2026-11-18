@@ -20,7 +20,7 @@ Engine própria (`config/hypr/rice/wall`): shaders GLSL no formato Shadertoy, lo
 
 ```bash
 ~/.config/hypr/rice/wall/entropy-wall-ctl list            # wallpapers disponíveis
-~/.config/hypr/rice/wall/entropy-wall-ctl set aurora      # liga (aurora, ondas, loop-fluido...)
+~/.config/hypr/rice/wall/entropy-wall-ctl set aurora      # liga (aurora, ondas, loop-fluido, ascii-terreno...)
 ~/.config/hypr/rice/wall/entropy-wall-ctl random
 ~/.config/hypr/rice/wall/entropy-wall-ctl off             # volta ao wallpaper estático
 ```

@@ -147,6 +147,8 @@ class UI:
         self.fps.connect("changed", self.on_fps)
         self.react = Gtk.CheckButton(label="Só anima com o mouse")
         self.react.connect("toggled", self.on_react)
+        self.ascii = Gtk.CheckButton(label="Estilo ASCII 3D")
+        self.ascii.connect("toggled", self.on_ascii)
         rm = Gtk.Button(label="Remover")
         rm.get_style_context().add_class("danger")
         rm.connect("clicked", lambda *_: self.remove())
@@ -156,6 +158,7 @@ class UI:
         bar.pack_start(Gtk.Label(label="FPS"), False, False, 0)
         bar.pack_start(self.fps, False, False, 0)
         bar.pack_start(self.react, False, False, 0)
+        bar.pack_start(self.ascii, False, False, 0)
         bar.pack_start(rm, False, False, 0)
         root.pack_start(bar, False, False, 0)
         self.selected, self.loading = None, False
@@ -240,6 +243,8 @@ class UI:
         self.fps.set_active({"60": 0, "30": 1, "24": 2}.get(str(m.get("fps", 60)), 0))
         self.react.set_active(bool(m.get("reactive", False)))
         self.react.set_visible(m.get("type") == "shader")
+        self.ascii.set_visible(m.get("type") == "image" or "was" in m)
+        self.ascii.set_active("was" in m)
         self.bar.show()
         self.loading = False
 
@@ -262,6 +267,25 @@ class UI:
 
     def on_react(self, c):
         self.save_field("reactive", c.get_active())
+
+    def on_ascii(self, c):
+        if self.loading or not self.selected:
+            return
+        name = self.selected
+        m = manifest(name)
+        base = os.path.join(LIB, name)
+        if c.get_active() and m.get("type") == "image":
+            shutil.copy2(os.path.join(HERE, "templates", "ascii-imagem.frag"), os.path.join(base, "ascii.frag"))
+            m = {"type": "shader", "shader": "ascii.frag", "channels": [m["file"]],
+                 "atlas": {"chars": " .·:;+=*xX#%@", "cell": 48}, "was": m}
+        elif not c.get_active() and "was" in m:
+            m = m["was"]
+        else:
+            return
+        save_manifest(name, m)
+        if current() == name:
+            GLib.timeout_add(200, lambda: (run(CTL, "set", name), False)[1])
+        GLib.timeout_add(600, lambda: (self.refresh(), False)[1])
 
     def turn_off(self):
         run(CTL, "off")
