@@ -271,6 +271,7 @@ class Panel:
         win.add(self.wstack)
         self.snap = None
         self.anim_p = 0.0
+        self.jelly, self.isl_snap = None, None
         scroll = self.scroll = Gtk.ScrolledWindow()
         self.morph_widget = scroll
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -347,6 +348,7 @@ class Panel:
     def after_close(self):
         if self.daemon:
             self.win.hide()
+            self.wstack.set_visible_child_name("real")
             self.visible = False
             self.closing = False
             self.write_state(False)
@@ -418,32 +420,50 @@ class Panel:
             self.snapping = False
         return surf
 
-    def notch_path(self, cr, cx, hw, D, f, r, close=True):
-        """contorno da ilha: colado no topo, com as laterais abrindo em curva côncava até a borda"""
+    def notch_path(self, cr, cx, hw, D, f, r, close=True, rip=None, lens=0.0):
+        """contorno da ilha: colado no topo, laterais em curva côncava; borda de baixo pode ondular (líquido)"""
         r = max(0.0, min(r, D / 2.0, hw))
+        rx = max(r, min(hw, r + (hw - r) * lens))
+        ry = max(1.0, min(D, r + (D - r) * lens * 0.8)) if lens > 0 else r
         x0, x1 = cx - hw, cx + hw
-        yf = min(0.55 * D, 22.0)
-        yb = max(yf, D - r)
+        yb = max(0.0, D - ry)
+        yf = min(0.55 * D, 22.0, max(1.0, yb))
+        amp, ph = rip if rip else (0.0, 0.0)
+        k = 2 * math.pi / 70.0
+
+        def rp(x, w=1.0):
+            return amp * math.sin(k * (hw - abs(x - cx)) - ph) * w if amp > 0.05 else 0.0
+
         cr.new_path()
         cr.move_to(x0 - f, 0)
         cr.curve_to(x0 - f * 0.45, 0, x0, yf * 0.42, x0, yf)
         cr.line_to(x0, yb)
-        cr.arc_negative(x0 + r, D - r, r, math.pi, math.pi / 2)
-        cr.line_to(x1 - r, D)
-        cr.arc_negative(x1 - r, D - r, r, math.pi / 2, 0)
+        n = 14
+        for i in range(1, n + 1):
+            a = math.pi - (math.pi / 2) * i / n
+            x = x0 + rx + rx * math.cos(a)
+            cr.line_to(x, yb + ry * math.sin(a) + rp(x, i / n))
+        m = max(2, int((x1 - x0 - 2 * rx) / 8))
+        for i in range(1, m):
+            x = x0 + rx + (x1 - x0 - 2 * rx) * i / m
+            cr.line_to(x, D + rp(x))
+        for i in range(0, n + 1):
+            a = math.pi / 2 - (math.pi / 2) * i / n
+            x = x1 - rx + rx * math.cos(a)
+            cr.line_to(x, yb + ry * math.sin(a) + rp(x, 1 - i / n))
         cr.line_to(x1, yf)
         cr.curve_to(x1, yf * 0.42, x1 + f * 0.45, 0, x1 + f, 0)
         if close:
             cr.close_path()
 
-    def draw_notch(self, cr, cx, hw, D, f, r, alpha, stroke_a):
+    def draw_notch(self, cr, cx, hw, D, f, r, alpha, stroke_a, rip=None, lens=0.0):
         cr.push_group()
         cr.set_source_rgb(*self.morph_rgba[:3])
-        self.notch_path(cr, cx, hw, D, f, r, True)
+        self.notch_path(cr, cx, hw, D, f, r, True, rip, lens)
         cr.fill()
         cr.pop_group_to_source()
         cr.paint_with_alpha(alpha)
-        self.notch_path(cr, cx, hw, D, f, r, False)
+        self.notch_path(cr, cx, hw, D, f, r, False, rip, lens)
         cr.set_source_rgba(self.fg_rgb[0], self.fg_rgb[1], self.fg_rgb[2], stroke_a)
         cr.set_line_width(1.0)
         cr.stroke()
@@ -478,6 +498,8 @@ class Panel:
     def on_anim_draw(self, widget, cr):
         if self.snap is None:
             return False
+        if getattr(self, "jelly", None) is not None:
+            return self.draw_jelly(widget, cr)
         p = self.anim_p
         o, t = self.origin, self.target
         pc = max(0.0, min(1.0, p))
@@ -497,6 +519,63 @@ class Panel:
             cr.paint_with_alpha(ca)
             cr.restore()
         return False
+
+    def draw_jelly(self, widget, cr):
+        q = self.jelly
+        o, t = self.origin, self.target
+        M = 0.58
+        m = min(1.0, q / M)
+        e = m * m * (3 - 2 * m)           # 0 -> 1: o painel escorre para dentro da ilha
+        e = e * (0.75 + 0.25 * m)          # puxa mais no fim, como gota que cai
+        p = 1.0 - e
+        hw = o["hw"] + (t["hw"] - o["hw"]) * p
+        D = o["D"] + (t["D"] - o["D"]) * p
+        f = o["f"] + (t["f"] - o["f"]) * p
+        r = o["r"] + (t["r"] - o["r"]) * p
+        alpha = o["a"] + (t["a"] - o["a"]) * min(1.0, p * 1.6)
+        w = max(0.0, (q - M) / (1.0 - M))
+        wob = math.exp(-5.0 * w) * math.sin(2 * math.pi * 1.6 * w) if w > 0 else 0.0
+        if w > 0:
+            D += -11.0 * wob
+            hw += 9.0 * wob
+        mid = math.sin(math.pi * min(1.0, m)) if q < M else 0.0
+        lens = 0.55 * mid
+        rip = (7.0 * mid + 3.0 * math.exp(-5.0 * w) * (1 if w > 0 else 0), 14.0 * q)
+        cx = widget.get_allocated_width() / 2.0
+        hw, D = max(4.0, hw), max(8.0, D)
+        self.draw_notch(cr, cx, hw, D, f, r, alpha, 0.16, rip, lens)
+        ca = 1.0 - self.smoothstep(0.0, 0.38, m) if q < M else 0.0
+        if ca > 0.01:
+            cr.save()
+            self.notch_path(cr, cx, hw, D, f, r, True, rip, lens)
+            cr.clip()
+            cr.set_source_surface(self.snap, 0, 0)
+            cr.paint_with_alpha(ca)
+            cr.restore()
+        ia = self.smoothstep(0.30, 0.62, q)
+        if self.isl_snap is not None and ia > 0.01:
+            cr.set_source_surface(self.isl_snap, cx - self.isl_snap.get_width() / 2.0, 3.0)
+            cr.paint_with_alpha(ia)
+        return False
+
+    def run_jelly(self, done):
+        t0 = GLib.get_monotonic_time()
+        dur = 0.95 * float(os.environ.get("ENTROPY_ANIM_SLOW", "1"))
+        self.jelly = 0.0
+        sent = [False]
+
+        def step():
+            r = min(1.0, (GLib.get_monotonic_time() - t0) / (dur * 1e6))
+            self.jelly = r
+            self.anim_area.queue_draw()
+            if r >= 0.93 and not sent[0]:
+                sent[0] = True
+                done(True)
+            if r >= 1.0:
+                done(False)
+                return False
+            return True
+        GLib.timeout_add(16, step)
 
     # variante em retângulo arredondado (usada pelo menu de apps, que sai do dock)
     def morph_target_rect(self):
@@ -581,16 +660,37 @@ class Panel:
             self.ready = True
         return False
 
+    def load_isl_snap(self):
+        try:
+            return cairo.ImageSurface.create_from_png(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "entropy-island.png"))
+        except Exception:
+            return None
+
     def close(self):
         if self.closing:
             return
         self.closing = True
         try:
             self.prepare_morph()
+            self.isl_snap = self.load_isl_snap()
             self.anim_p = 1.0
             self.wstack.set_visible_child_name("anim")
-            self.run_anim(False, 0.40, self.after_close)
-        except Exception:
+
+            def done(early):
+                if early:
+                    self.write_state(False)
+                    try:
+                        pid = int(open(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "entropy-island.pid")).read())
+                        os.kill(pid, signal.SIGUSR2)
+                    except Exception:
+                        pass
+                else:
+                    self.jelly = None
+                    self.after_close()
+            self.run_jelly(done)
+        except Exception as e:
+            print("close:", repr(e), flush=True)
+            self.jelly = None
             self.after_close()
 
     def on_focus_out(self, *a):

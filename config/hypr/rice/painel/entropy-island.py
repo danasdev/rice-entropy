@@ -202,6 +202,13 @@ class Island:
         t -= 1.0
         return 1.0 + (k + 1.0) * t ** 3 + k * t ** 2
 
+    def save_snap(self):
+        try:
+            if self.shown and self.win.get_mapped() and self.win.get_opacity() > 0.9 and self.box.get_allocated_width() > 20:
+                self.snapshot().write_to_png(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "entropy-island.png"))
+        except Exception:
+            pass
+
     def snapshot(self):
         w, h = self.box.get_allocated_width(), self.box.get_allocated_height()
         surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, max(1, w), max(1, h))
@@ -330,6 +337,7 @@ class Island:
         self.win.set_opacity(1.0)
         self.area.queue_draw()
         self.set_input()
+        GLib.timeout_add(120, lambda: (self.save_snap(), False)[1])
 
     def set_shown(self, v, instant=False):
         if v == self.shown:
@@ -387,6 +395,7 @@ class Island:
                 self.eb.set_opacity(1.0)
                 self.area.queue_draw()
                 self.set_input()
+                GLib.timeout_add(80, lambda: (self.save_snap(), False)[1])
                 return False
             return True
         GLib.timeout_add(16, step)
@@ -477,6 +486,7 @@ class App:
     def tick_slow(self):
         for isl in self.islands.values():
             isl.update()
+            isl.save_snap()
         return True
 
     def tick(self, instant=False):
@@ -510,6 +520,7 @@ def main():
     open(PIDF, "w").write(str(os.getpid()))
     global APP
     APP = App()
+    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR2, lambda: (APP.tick(True), True)[1])
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, lambda: (Gtk.main_quit(), False)[1])
     Gtk.main()
     try:
