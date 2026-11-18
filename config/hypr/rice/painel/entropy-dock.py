@@ -117,7 +117,8 @@ class Dock:
             a = float(open(cc.ALPHA).read().strip())
         except Exception:
             a = 0.38
-        self.tint = (su[0] / 255, su[1] / 255, su[2] / 255, min(0.80, 0.40 + (a - 0.38) * 0.8))
+        lt = 0.30   # mesmo tom claro do menu de apps (a ilha vira o menu)
+        self.tint = tuple([(su[i] + (fg[i] - su[i]) * lt) / 255 for i in range(3)] + [min(0.80, 0.40 + (a - 0.38) * 0.8)])
         self.fgc = (fg[0] / 255, fg[1] / 255, fg[2] / 255)
         win = self.win = Gtk.Window()
         win.set_app_paintable(True)
