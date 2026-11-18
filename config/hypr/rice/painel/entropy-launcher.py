@@ -108,7 +108,6 @@ class Launcher:
             w, h = self.wstack.get_allocated_width(), self.wstack.get_allocated_height()
             surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, max(1, w), max(1, h))
             cr = cairo.Context(surf)
-            cr.translate(self.PF + 6, 6)
             self.outer.draw(cr)
         finally:
             self.snapping = False
@@ -196,8 +195,6 @@ class Launcher:
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         outer = self.outer = Gtk.Box()
-        for side, v in (("start", self.PF + 6), ("end", self.PF + 6), ("top", 6), ("bottom", 0)):
-            getattr(outer, f"set_margin_{side}")(v)
         self.wstack = Gtk.Stack()
         self.anim_area = Gtk.DrawingArea()
         self.anim_area.connect("draw", self.on_anim_draw)
@@ -208,6 +205,8 @@ class Launcher:
 
         panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         panel.get_style_context().add_class("panelx")
+        for side, v in (("start", self.PF + 6), ("end", self.PF + 6), ("top", 6), ("bottom", 0)):
+            getattr(panel, f"set_margin_{side}")(v)
         panel.set_size_request(sc(860), -1)
         outer.pack_start(panel, True, True, 0)
         self.morph_widget = panel

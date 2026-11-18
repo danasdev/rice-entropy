@@ -258,7 +258,7 @@ class Island:
         x0, x1 = cx - hw, cx + hw
         yb = D - ry
         yf = min(0.55 * D, 22.0, max(1.0, yb))
-        amp, pphase = self.rip
+        amp, pphase = (0.0, 0.0) if settled else self.rip
         k = 2 * math.pi / 70.0
 
         def rip(x):
@@ -333,6 +333,7 @@ class Island:
         self.win.show_all()
         self.measure()
         self.hw, self.D, self.f, self.ca, self.fa = self.pw / 2, EDGE + self.ph, self.FLARE, 1.0, 1.0
+        self.g, self.rip = 1.0, (0.0, 0.0)
         self.eb.set_opacity(1.0)
         self.win.set_opacity(1.0)
         self.area.queue_draw()
