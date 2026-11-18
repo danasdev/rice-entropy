@@ -188,7 +188,9 @@ class Launcher:
         except Exception:
             a = 0.38
         su_ = cc.hex2rgb(PAL["surface"])
-        self.morph_rgba = (su_[0] / 255, su_[1] / 255, su_[2] / 255, min(0.80, 0.40 + (a - 0.38) * 0.8))
+        fg_ = cc.hex2rgb(PAL["fg"])
+        lt = 0.30   # fundo mais claro: mistura a superfície com a cor do texto
+        self.morph_rgba = tuple([(su_[i] + (fg_[i] - su_[i]) * lt) / 255 for i in range(3)] + [min(0.80, 0.40 + (a - 0.38) * 0.8)])
         self.fg_rgb = tuple(c / 255 for c in cc.hex2rgb(PAL["fg"]))
         prov = Gtk.CssProvider()
         prov.load_from_data(make_css(min(0.78, 0.30 + (a - 0.38) * 0.9)).encode())

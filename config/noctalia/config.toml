@@ -274,9 +274,9 @@ box_height = 32.0
 clock_style = "digital"
 format = "{:%A, %d de %B}"
 center_text = true
-color = "surface_variant"
+color = "on_surface_variant"
 background = false
-shadow = false
+shadow = true
 
 [desktop_widgets.widget.lp_weather]
 type = "weather"
