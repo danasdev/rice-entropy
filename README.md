@@ -25,6 +25,8 @@ Engine própria (`config/hypr/rice/wall`): shaders GLSL no formato Shadertoy, lo
 ~/.config/hypr/rice/wall/entropy-wall-ctl off             # volta ao wallpaper estático
 ```
 
+Interface: `Super+Alt+W` abre a biblioteca (ligar, adicionar vídeo, imagem ou shader, ajustar parallax e FPS, remover).
+
 Cada wallpaper é uma pasta em `~/.local/share/entropy/wallpapers/<nome>/` com um `manifest.json`:
 
 ```json

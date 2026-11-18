@@ -1,1 +1,1 @@
-{"type": "shader", "shader": "ondas.frag", "speed": 1.0}
+{"type": "shader", "shader": "ondas.frag", "speed": 1.8, "reactive": true}

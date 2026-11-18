@@ -95,6 +95,7 @@ uniform vec3 iResolution;
 uniform float iTime;
 uniform vec4 iMouse;
 uniform vec2 iParallax;
+uniform float iEnergy;
 uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
 uniform vec3 iChannelRes0;
@@ -321,6 +322,10 @@ class Surface:
         except Exception as e:
             print("erro carregando wallpaper:", e, flush=True)
             self.res["prog"] = None
+            try:
+                open(os.path.join(RT, "entropy-wall.err"), "w").write(str(e)[:1500])
+            except OSError:
+                pass
 
     def uni(self, prog, name):
         return glGetUniformLocation(prog, name.encode())
@@ -339,6 +344,7 @@ class Surface:
         glUseProgram(prog)
         glUniform3f(self.uni(prog, "iResolution"), W, H, 1.0)
         glUniform1f(self.uni(prog, "iTime"), eng.time())
+        glUniform1f(self.uni(prog, "iEnergy"), eng.energy)
         px, py = eng.pointer_for(self)
         glUniform4f(self.uni(prog, "iMouse"), (px * 0.5 + 0.5) * W, (0.5 - py * 0.5) * H, 0.0, 0.0)
         glUniform2f(self.uni(prog, "iParallax"), eng.par[0], eng.par[1])
@@ -420,6 +426,7 @@ class Engine:
         self.raw = None
         self.t0 = time.monotonic()
         self.speed = 1.0
+        self.energy, self.rtime, self.reactive, self.prev = 0.0, 0.0, False, None
         self.preview_path, self.preview_frames, self.fps, self.skip = None, 0, 60, 0
         disp = Gdk.Display.get_default()
         try:
@@ -437,7 +444,8 @@ class Engine:
         GLib.timeout_add(16, self.tick)
 
     def time(self):
-        return (time.monotonic() - self.t0) * self.speed
+        # reactive: o tempo só anda quando o mouse se mexe (energia suavizada), senão o fundo fica parado
+        return self.rtime if self.reactive else (time.monotonic() - self.t0) * self.speed
 
     def pointer_for(self, surf):
         if self.raw is None:
@@ -450,7 +458,13 @@ class Engine:
     def tick(self):
         c = self.cursor.get()
         if c:
+            if self.prev is not None:
+                sp = math.hypot(c[0] - self.prev[0], c[1] - self.prev[1])
+                tgt = max(0.0, min(1.0, sp / 5.0))
+                self.energy += (tgt - self.energy) * (0.35 if tgt > self.energy else 0.025)   # sobe rápido, desce devagar
+            self.prev = c
             self.raw = c
+        self.rtime += 0.016 * self.energy * self.speed
         if self.raw and self.surfaces:
             s = self.surfaces[0]
             for sf in self.surfaces:
@@ -507,6 +521,10 @@ class Engine:
             self.decoder.stop()
             self.decoder = None
         self.manifest, self.dir = None, None
+        try:
+            os.remove(os.path.join(RT, "entropy-wall.err"))
+        except OSError:
+            pass
         if name:
             base = os.path.join(LIB, name)
             try:
@@ -521,6 +539,7 @@ class Engine:
                             break
                 self.speed = float(self.manifest.get("speed", 1.0))
                 self.fps = int(self.manifest.get("fps", 60))
+                self.reactive = bool(self.manifest.get("reactive", False))
             except Exception as e:
                 print("manifest inválido:", e, flush=True)
                 self.manifest = None
