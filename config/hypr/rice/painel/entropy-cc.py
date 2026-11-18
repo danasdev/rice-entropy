@@ -131,6 +131,7 @@ def wicon(code):
 
 CSS = f"""
 window {{ background: transparent; }}
+.panelx {{ background: none; border: none; }}
 .panel {{ background-color: rgba(22,16,46,TINT); border: 1px solid rgba(255,255,255,0.20); border-radius: 36px; }}
 label {{ color: #fff; }}
 .title {{ font-size: 24px; font-weight: 700; }}
@@ -211,6 +212,8 @@ def make_css(tint):
 
 
 class Panel:
+    PF = 30   # abertura lateral do fundo (igual à da ilha)
+
     def __init__(self, daemon=False):
         self.daemon = daemon
         self.visible = False
@@ -242,18 +245,21 @@ class Panel:
         GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.TOP, True)
         self.pick_monitor()
         self.top_margin = 6
-        GtkLayerShell.set_margin(win, GtkLayerShell.Edge.TOP, self.top_margin + 14)
+        GtkLayerShell.set_margin(win, GtkLayerShell.Edge.TOP, 0)
         try:
             a = float(open(ALPHA).read().strip())
         except Exception:
             a = 0.38
         tint = min(0.78, 0.30 + (a - 0.38) * 0.9)
+        su_ = hex2rgb(PAL["surface"])
+        self.morph_rgba = (su_[0] / 255, su_[1] / 255, su_[2] / 255, min(0.80, 0.40 + (a - 0.38) * 0.8))
+        self.fg_rgb = tuple(c / 255 for c in hex2rgb(PAL["fg"]))
         prov = Gtk.CssProvider()
         prov.load_from_data(make_css(tint).encode())
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         outer = Gtk.Box()
-        for side, v in (("start", 6), ("end", 6), ("bottom", 6), ("top", 0)):
+        for side, v in (("start", 0), ("end", 0), ("bottom", 0), ("top", 0)):
             getattr(outer, f"set_margin_{side}")(v)
         self.outer = outer
         self.wstack = Gtk.Stack()
@@ -266,13 +272,18 @@ class Panel:
         self.snap = None
         self.anim_p = 0.0
         scroll = self.scroll = Gtk.ScrolledWindow()
+        self.morph_widget = scroll
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.max_h = max(260, self.mon_h - 56 - 130)
         scroll.set_max_content_height(self.max_h)
         scroll.set_shadow_type(Gtk.ShadowType.NONE)
+        for side, v in (("start", self.PF + 6), ("end", self.PF + 6), ("top", 0), ("bottom", 6)):
+            getattr(scroll, f"set_margin_{side}")(v)
         outer.pack_start(scroll, True, True, 0)
+        outer.connect("draw", self.on_bg_draw)
+        self.panel_tint = tint
         panel = self.panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        panel.get_style_context().add_class("panel")
+        panel.get_style_context().add_class("panelx")
         panel.set_size_request(sc(860), -1)
         pad = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=sc(10))
         for side in ("start", "end", "top", "bottom"):
@@ -321,7 +332,7 @@ class Panel:
         self.pick_monitor()
         self.max_h = max(260, self.mon_h - 56 - 130)
         self.scroll.set_max_content_height(self.max_h)
-        GtkLayerShell.set_margin(self.win, GtkLayerShell.Edge.TOP, self.top_margin + 14)
+        GtkLayerShell.set_margin(self.win, GtkLayerShell.Edge.TOP, 0)
         self.goto(page or "home")
         self.wstack.set_visible_child_name("real")
         self.win.set_opacity(0.0)
@@ -380,43 +391,165 @@ class Panel:
         self.outer.draw(cr)
         return surf
 
+    # ----- a ilha se expande até virar o painel (mesma forma, colada no topo) -----
+    @staticmethod
+    def smoothstep(a, b, x):
+        t = max(0.0, min(1.0, (x - a) / (b - a)))
+        return t * t * (3 - 2 * t)
+
+    @staticmethod
+    def rrect(cr, x, y, w, h, r):
+        r = max(0.0, min(r, w / 2.0, h / 2.0))
+        cr.new_sub_path()
+        cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
+        cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
+        cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
+        cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
+        cr.close_path()
+
+    def snapshot(self):
+        """imagem do conteúdo do painel, sem o fundo (o fundo é desenhado pela forma)"""
+        self.snapping = True
+        try:
+            w, h = self.outer.get_allocated_width(), self.outer.get_allocated_height()
+            surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, max(1, w), max(1, h))
+            self.outer.draw(cairo.Context(surf))
+        finally:
+            self.snapping = False
+        return surf
+
+    def notch_path(self, cr, cx, hw, D, f, r, close=True):
+        """contorno da ilha: colado no topo, com as laterais abrindo em curva côncava até a borda"""
+        r = max(0.0, min(r, D / 2.0, hw))
+        x0, x1 = cx - hw, cx + hw
+        yf = min(0.55 * D, 22.0)
+        yb = max(yf, D - r)
+        cr.new_path()
+        cr.move_to(x0 - f, 0)
+        cr.curve_to(x0 - f * 0.45, 0, x0, yf * 0.42, x0, yf)
+        cr.line_to(x0, yb)
+        cr.arc_negative(x0 + r, D - r, r, math.pi, math.pi / 2)
+        cr.line_to(x1 - r, D)
+        cr.arc_negative(x1 - r, D - r, r, math.pi / 2, 0)
+        cr.line_to(x1, yf)
+        cr.curve_to(x1, yf * 0.42, x1 + f * 0.45, 0, x1 + f, 0)
+        if close:
+            cr.close_path()
+
+    def draw_notch(self, cr, cx, hw, D, f, r, alpha, stroke_a):
+        cr.push_group()
+        cr.set_source_rgb(*self.morph_rgba[:3])
+        self.notch_path(cr, cx, hw, D, f, r, True)
+        cr.fill()
+        cr.pop_group_to_source()
+        cr.paint_with_alpha(alpha)
+        self.notch_path(cr, cx, hw, D, f, r, False)
+        cr.set_source_rgba(self.fg_rgb[0], self.fg_rgb[1], self.fg_rgb[2], stroke_a)
+        cr.set_line_width(1.0)
+        cr.stroke()
+
+    def panel_rect(self):
+        pt = self.scroll.translate_coordinates(self.outer, 0, 0)
+        if pt is None:
+            return None
+        return pt[0], pt[1], self.scroll.get_allocated_width(), self.scroll.get_allocated_height()
+
+    def on_bg_draw(self, widget, cr):
+        if getattr(self, "snapping", False):
+            return False
+        r = self.panel_rect()
+        if r is None or r[2] < 50:
+            return False
+        x, y, w, h = r
+        self.draw_notch(cr, widget.get_allocated_width() / 2.0, w / 2.0, y + h, self.PF, sc(36), self.panel_tint, 0.18)
+        return False
+
+    def morph_target(self):
+        x, y, w, h = self.panel_rect()
+        return {"hw": w / 2.0, "D": y + h, "f": float(self.PF), "r": float(sc(36)), "a": self.panel_tint}
+
+    def morph_origin(self):
+        try:
+            pw, ph = map(float, open(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "entropy-island.geom")).read().split())
+        except Exception:
+            pw, ph = 140.0, 30.0
+        return {"hw": pw / 2.0, "D": 3.0 + ph, "f": 30.0, "r": ph / 2.0, "a": self.morph_rgba[3]}
+
     def on_anim_draw(self, widget, cr):
-        snap = self.snap
-        if snap is None:
+        if self.snap is None:
             return False
-        W, H = snap.get_width(), snap.get_height()
-        p = max(0.0, min(1.0, self.anim_p))
-        if p <= 0.001:
-            return False
-        alpha = min(1.0, p * 2.4)
+        p = self.anim_p
+        o, t = self.origin, self.target
+        pc = max(0.0, min(1.0, p))
+        hw = o["hw"] + (t["hw"] - o["hw"]) * p
+        D = o["D"] + (t["D"] - o["D"]) * p
+        f = o["f"] + (t["f"] - o["f"]) * pc
+        r = o["r"] + (t["r"] - o["r"]) * pc
+        alpha = o["a"] + (t["a"] - o["a"]) * pc
         cx = widget.get_allocated_width() / 2.0
-        sh = 3
-        for y0 in range(0, H, sh):
-            t = y0 / H
-            q = max(0.0, min(1.0, (p - (1 - t) * 0.55) / 0.45))
-            f = 0.04 + 0.96 * (q * q * (3 - 2 * q))
-            wob = math.sin(t * 7.0 + p * 9.0) * (1 - p) * W * 0.018
-            dw = W * f
-            dx = cx - dw / 2 + wob
-            dy = y0 * p
-            dh = max(1.0, sh * p)
+        ca = self.smoothstep(0.30, 0.80, pc)
+        self.draw_notch(cr, cx, max(4.0, hw), max(8.0, D), f, r, alpha, 0.16 + 0.02 * ca)
+        if ca > 0.01:
             cr.save()
-            cr.rectangle(dx, dy, dw, dh + 0.6)
+            self.notch_path(cr, cx, max(4.0, hw), max(8.0, D), f, r, True)
             cr.clip()
-            cr.translate(dx, dy)
-            cr.scale(f, p)
-            cr.translate(0, -y0)
-            cr.set_source_surface(snap, 0, 0)
-            cr.paint_with_alpha(alpha)
+            cr.set_source_surface(self.snap, 0, 0)
+            cr.paint_with_alpha(ca)
             cr.restore()
         return False
 
+    # variante em retângulo arredondado (usada pelo menu de apps, que sai do dock)
+    def morph_target_rect(self):
+        w = self.morph_widget
+        x, y = w.translate_coordinates(self.outer, 0, 0)
+        return (x, y, w.get_allocated_width(), w.get_allocated_height(), sc(36))
+
+    def on_anim_draw_rect(self, widget, cr):
+        if self.snap is None:
+            return False
+        p = self.anim_p
+        ox, oy, ow, oh, orr = self.origin
+        tx, ty, tw, th, tr = self.target
+        k = max(0.0, p)
+        x, y = ox + (tx - ox) * k, oy + (ty - oy) * k
+        w, h = max(2.0, ow + (tw - ow) * k), max(2.0, oh + (th - oh) * k)
+        pc = max(0.0, min(1.0, p))
+        r = orr + (tr - orr) * pc
+        fa = self.morph_rgba[3] * (1.0 - self.smoothstep(0.30, 0.85, pc))
+        self.rrect(cr, x, y, w, h, r)
+        cr.set_source_rgba(self.morph_rgba[0], self.morph_rgba[1], self.morph_rgba[2], fa)
+        cr.fill()
+        ca = self.smoothstep(0.22, 0.78, pc)
+        if ca > 0.01:
+            cr.save()
+            self.rrect(cr, x, y, w, h, r)
+            cr.clip()
+            cr.set_source_surface(self.snap, 0, 0)
+            cr.paint_with_alpha(ca)
+            cr.restore()
+        self.rrect(cr, x, y, w, h, r)
+        cr.set_source_rgba(self.fg_rgb[0], self.fg_rgb[1], self.fg_rgb[2], 0.18 * (1.0 - 0.5 * ca))
+        cr.set_line_width(1.0)
+        cr.stroke()
+        return False
+
+    def prepare_morph_rect(self):
+        self.snap = self.snapshot()
+        self.anim_area.set_size_request(self.snap.get_width(), self.snap.get_height())
+        self.target = self.morph_target()
+        self.origin = self.morph_origin()
+
     def run_anim(self, opening, dur, done):
         self.t0 = GLib.get_monotonic_time()
+        dur = dur * float(os.environ.get("ENTROPY_ANIM_SLOW", "1"))
 
         def step():
             r = min(1.0, (GLib.get_monotonic_time() - self.t0) / (dur * 1e6))
-            self.anim_p = (1 - (1 - r) ** 3) if opening else (1 - r ** 2)
+            if opening:
+                t = r - 1.0
+                self.anim_p = 1.0 + 1.7 * t ** 3 + 0.7 * t ** 2
+            else:
+                self.anim_p = 1.0 - r * r * (3 - 2 * r)
             self.anim_area.queue_draw()
             if r >= 1.0:
                 done()
@@ -424,18 +557,24 @@ class Panel:
             return True
         GLib.timeout_add(16, step)
 
+    def prepare_morph(self):
+        self.snap = self.snapshot()
+        self.anim_area.set_size_request(self.snap.get_width(), self.snap.get_height())
+        self.target = self.morph_target()
+        self.origin = self.morph_origin()
+
     def anim_open(self):
         try:
-            self.snap = self.snapshot()
-            self.anim_area.set_size_request(self.snap.get_width(), self.snap.get_height())
+            self.prepare_morph()
             self.anim_p = 0.0
             self.wstack.set_visible_child_name("anim")
             self.win.set_opacity(1.0)
 
             def done():
                 self.wstack.set_visible_child_name("real")
+                self.outer.queue_draw()
                 self.ready = True
-            self.run_anim(True, 0.36, done)
+            self.run_anim(True, 0.55, done)
         except Exception as e:
             print("anim_open:", repr(e), flush=True)
             self.win.set_opacity(1.0)
@@ -447,11 +586,10 @@ class Panel:
             return
         self.closing = True
         try:
-            self.snap = self.snapshot()
-            self.anim_area.set_size_request(self.snap.get_width(), self.snap.get_height())
+            self.prepare_morph()
             self.anim_p = 1.0
             self.wstack.set_visible_child_name("anim")
-            self.run_anim(False, 0.28, self.after_close)
+            self.run_anim(False, 0.40, self.after_close)
         except Exception:
             self.after_close()
 

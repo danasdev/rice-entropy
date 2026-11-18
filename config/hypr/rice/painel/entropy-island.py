@@ -20,7 +20,7 @@ CCPID = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "entropy-cc.pid"
 TOGGLE = os.path.join(HERE, "entropy-cc-toggle")
 BATT = [0xF007A, 0xF007B, 0xF007C, 0xF007D, 0xF007E, 0xF007F, 0xF0080, 0xF0081, 0xF0082, 0xF0079]
 EDGE = 3
-EXTRA = 30   # espaço abaixo da pílula para o balanço elástico
+EXTRA = 34   # espaço abaixo da pílula para o balanço elástico
 
 
 def css():
@@ -63,12 +63,14 @@ def panel_open():
 
 class Island:
     FLARE = 30   # abertura lateral (curva côncava até a borda do topo)
+    WAVE = 170   # de quão longe, de cada lado, a onda começa
 
     def __init__(self, gmon, name):
         self.name, self.shown, self.token = name, False, 0
         self.hover_isl = self.hover_zone = False
         self.leave_t = 0
-        self.snap, self.s, self.nwf, self.ca, self.vel, self.hov = None, 0.0, 0.0, 0.0, 0.0, 0.0
+        self.snap, self.hov, self.fa = None, 0.0, 1.0
+        self.hw, self.D, self.f, self.ca = 65.0, 31.0, 30.0, 1.0
         su, fg = cc.hex2rgb(PAL["surface"]), cc.hex2rgb(PAL["fg"])
         try:
             a = float(open(cc.ALPHA).read().strip())
@@ -108,18 +110,20 @@ class Island:
         eb.set_margin_top(EDGE)
         evmask = Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK | Gdk.EventMask.BUTTON_PRESS_MASK
         area = self.area = Gtk.DrawingArea()
-        for wdg in (eb, area):
-            wdg.add_events(evmask)
-            wdg.connect("button-press-event", lambda *_: self.open())
-            wdg.connect("enter-notify-event", lambda *_: self.set_isl(True))
-            wdg.connect("leave-notify-event", lambda *_: self.set_isl(False))
+        win.add_events(evmask)
+        win.connect("button-press-event", lambda *_: (self.open(), True)[1])
+        win.connect("enter-notify-event", lambda w, e: self.set_isl(True))
+        win.connect("leave-notify-event", lambda w, e: (None if e.detail == Gdk.NotifyType.INFERIOR else self.set_isl(False)))
+        self.hov_t = 0.0
+        self.rip = (0.0, 0.0)
         area.connect("draw", self.on_draw)
         ov = Gtk.Overlay()
         ov.add(area)
         ov.add_overlay(eb)
         win.add(ov)
         self.update()
-        self.pw, self.ph, self.W, self.H = 130, 28, 190, EDGE + 28 + EXTRA
+        self.pw, self.ph = 130, 28
+        self.W, self.H = 130 + 2 * (170 + 30 + 12), EDGE + 28 + EXTRA
         area.set_size_request(self.W, self.H)
         eb.set_opacity(0.0)
         win.set_opacity(0.0)
@@ -143,9 +147,22 @@ class Island:
     def set_isl(self, v):
         self.hover_isl = v
         self.leave_t = GLib.get_monotonic_time()
-        self.hov = 1.0 if v else 0.0
-        self.area.queue_draw()
+        self.hov_t = 1.0 if v else 0.0
+        if not getattr(self, "hov_run", False):
+            self.hov_run = True
+            GLib.timeout_add(16, self.hov_step)
         self.poke(v)
+
+    def hov_step(self):
+        d = self.hov_t - self.hov
+        if abs(d) < 0.02:
+            self.hov = self.hov_t
+            self.hov_run = False
+            self.area.queue_draw()
+            return False
+        self.hov += d * 0.28
+        self.area.queue_draw()
+        return True
 
     def set_zone(self, v):
         self.hover_zone = v
@@ -165,6 +182,7 @@ class Island:
         return (GLib.get_monotonic_time() - self.leave_t) < 400000
 
     def open(self):
+        self.hide_instant()
         subprocess.Popen([TOGGLE, self.name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
     def update(self):
@@ -179,94 +197,145 @@ class Island:
         t = max(0.0, min(1.0, (x - a) / (b - a)))
         return t * t * (3 - 2 * t)
 
+    @staticmethod
+    def back(t, k=1.0):
+        t -= 1.0
+        return 1.0 + (k + 1.0) * t ** 3 + k * t ** 2
+
     def snapshot(self):
         w, h = self.box.get_allocated_width(), self.box.get_allocated_height()
         surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, max(1, w), max(1, h))
         self.box.draw(cairo.Context(surf))
         return surf
 
-    def on_draw(self, w, cr):
+    def params(self, u, opening):
+        """uma só forma: lente larga que se contrai das laterais ao centro, ondulando, e assenta em pílula"""
         pw, ph = self.pw, self.ph
+        Df = EDGE + ph
+        if opening:
+            e = self.smooth(0.0, 0.82, u)
+            hw = (pw / 2 + self.WAVE) + (pw / 2 - (pw / 2 + self.WAVE)) * self.back(e, 1.0)
+            v = self.smooth(0.10, 1.0, u)
+            D = Df * (1.0 - math.exp(-5.5 * v) * math.cos(8.0 * v)) if v > 0 else 0.0
+            f = self.FLARE * self.smooth(0.25, 1.0, u)
+            ca = self.smooth(0.66, 0.97, u)
+            fa = self.smooth(0.0, 0.14, u)
+            g = self.smooth(0.30, 1.0, u)
+            amp = 6.0 * self.smooth(0.04, 0.25, u) * (1.0 - self.smooth(0.35, 1.0, u))
+            ph_ = 16.0 * u
+        else:
+            hw = pw / 2 + self.WAVE * self.smooth(0.15, 1.0, u)
+            D = Df * (1.0 - self.smooth(0.0, 0.85, u))
+            f = self.FLARE * (1.0 - self.smooth(0.0, 0.5, u))
+            ca = 1.0 - self.smooth(0.0, 0.35, u)
+            fa = 1.0 - self.smooth(0.80, 1.0, u)
+            g = 1.0 - self.smooth(0.0, 0.7, u)
+            amp = 4.0 * self.smooth(0.05, 0.3, u) * (1.0 - self.smooth(0.5, 1.0, u))
+            ph_ = -10.0 * u
+        self.g, self.rip = g, (amp, ph_)
+        return hw, max(D, 0.0), f, ca, fa
+
+    def on_draw(self, w, cr):
         cx = w.get_allocated_width() / 2.0
-        travel = EDGE + 0.74 * ph
-        y_top = -0.74 * ph + travel * self.s
-        k = 1.0 + 0.10 * max(-1.0, min(1.0, self.vel / 6.0))
-        sx, sy = 1.0 / k, k
-        dw, dh = pw * sx, ph * sy
-        r = dh / 2.0
-        x0 = cx - dw / 2.0
-        f = self.FLARE * self.nwf
-        nwf = self.nwf
-        wt = (0.52 + 0.48 * nwf) * dw + 2 * f
-        wb = (0.30 + 0.70 * nwf) * dw
-        y_end = y_top + r
-        alpha = self.tint[3] + 0.14 * self.hov
+        hw, D, f, ca = self.hw, self.D, self.f, self.ca
+        h = self.hov
+        settled = self.fa >= 0.99 and self.ca >= 0.99
+        if settled:
+            hw, D = hw + 5.0 * h, D + 2.5 * h
+        if D < 0.6:
+            return False
+        g = getattr(self, "g", 1.0) if not settled else 1.0
+        r = self.ph / 2.0
+        rx = max(2.0, min(hw, r + (hw - r) * (1.0 - g)))
+        ry = max(1.0, min(D, r + (D - r) * (1.0 - g)))
+        x0, x1 = cx - hw, cx + hw
+        yb = D - ry
+        yf = min(0.55 * D, 22.0, max(1.0, yb))
+        amp, pphase = self.rip
+        k = 2 * math.pi / 70.0
 
-        def pill_path():
-            cr.new_sub_path()
-            cr.arc(x0 + r, y_top + r, r, math.pi / 2, 3 * math.pi / 2)
-            cr.arc(x0 + dw - r, y_top + r, r, -math.pi / 2, math.pi / 2)
-            cr.close_path()
+        def rip(x):
+            if amp < 0.05:
+                return 0.0
+            return amp * math.sin(k * (hw - abs(x - cx)) * 1.0 - pphase) * min(1.0, D / 14.0)
 
-        def neck_path():
-            c1l = (cx - wt / 2 + (wt - wb) / 2 * 0.55, 0)
-            c1r = (cx + wt / 2 - (wt - wb) / 2 * 0.55, 0)
-            cr.move_to(cx - wt / 2, 0)
-            cr.curve_to(c1l[0], c1l[1], cx - wb / 2, y_end * 0.42, cx - wb / 2, y_end)
-            cr.line_to(cx + wb / 2, y_end)
-            cr.curve_to(cx + wb / 2, y_end * 0.42, c1r[0], c1r[1], cx + wt / 2, 0)
-            cr.close_path()
+        def outline(close):
+            cr.new_path()
+            cr.move_to(x0 - f, 0)
+            cr.curve_to(x0 - f * 0.45, 0, x0, yf * 0.42, x0, yf)
+            cr.line_to(x0, yb)
+            n = 14
+            for i in range(1, n + 1):
+                a = math.pi - (math.pi / 2) * i / n
+                x, y = x0 + rx + rx * math.cos(a), yb + ry * math.sin(a)
+                cr.line_to(x, y + rip(x) * (i / n))
+            m = max(2, int((x1 - rx - (x0 + rx)) / 8))
+            for i in range(1, m):
+                x = x0 + rx + (x1 - rx - x0 - rx) * i / m
+                cr.line_to(x, D + rip(x))
+            for i in range(0, n + 1):
+                a = (math.pi / 2) - (math.pi / 2) * i / n
+                x, y = x1 - rx + rx * math.cos(a), yb + ry * math.sin(a)
+                cr.line_to(x, y + rip(x) * (1 - i / n))
+            cr.line_to(x1, yf)
+            cr.curve_to(x1, yf * 0.42, x1 + f * 0.45, 0, x1 + f, 0)
+            if close:
+                cr.close_path()
 
+        alpha = (self.tint[3] + 0.14 * h) * self.fa
         cr.push_group()
         cr.set_source_rgb(*self.tint[:3])
-        pill_path()
+        outline(True)
         cr.fill()
-        if nwf > 0.01 and y_top > 0.5:
-            neck_path()
-            cr.fill()
         cr.pop_group_to_source()
         cr.paint_with_alpha(alpha)
-        # borda: contorno externo (colo + gota), sem a linha do topo
-        cr.set_source_rgba(self.fgc[0], self.fgc[1], self.fgc[2], 0.14 * min(1.0, self.ca + 0.4))
+        outline(False)
+        cr.set_source_rgba(self.fgc[0], self.fgc[1], self.fgc[2], (0.14 + 0.16 * h) * self.fa * min(1.0, ca + 0.4))
         cr.set_line_width(1.0)
-        if nwf > 0.95 and y_top > 0.5:
-            c1l = (cx - wt / 2 + (wt - wb) / 2 * 0.55, 0)
-            c1r = (cx + wt / 2 - (wt - wb) / 2 * 0.55, 0)
-            cr.move_to(cx - wt / 2, 0)
-            cr.curve_to(c1l[0], c1l[1], cx - wb / 2, y_end * 0.42, cx - wb / 2, y_end)
-            cr.line_to(x0, y_end)
-            cr.arc_negative(x0 + r, y_top + r, r, math.pi, math.pi / 2)
-            cr.line_to(x0 + dw - r, y_top + dh)
-            cr.arc_negative(x0 + dw - r, y_top + r, r, math.pi / 2, 0)
-            cr.line_to(cx + wb / 2, y_end)
-            cr.curve_to(cx + wb / 2, y_end * 0.42, c1r[0], c1r[1], cx + wt / 2, 0)
-            cr.stroke()
-        else:
-            pill_path()
-            cr.stroke()
-        # conteúdo durante a animação (depois, os rótulos reais assumem)
-        if self.snap is not None and self.ca > 0.01 and self.eb.get_opacity() < 0.5:
-            cr.save()
-            cr.translate(cx, y_top + dh / 2.0)
-            cr.scale(sx, sy)
-            cr.translate(-pw / 2.0, -ph / 2.0)
-            cr.set_source_surface(self.snap, 0, 0)
-            cr.paint_with_alpha(self.ca)
-            cr.restore()
-        self.region = (cx - wt / 2, 0, wt, max(1.0, y_top + dh))
+        cr.stroke()
+        if self.snap is not None and ca > 0.01 and self.eb.get_opacity() < 0.5:
+            cr.set_source_surface(self.snap, cx - self.pw / 2.0, EDGE)
+            cr.paint_with_alpha(ca)
         return False
 
-    def set_input(self):
+    def set_input(self, empty=False):
         try:
-            cx = self.W / 2.0
-            wt = self.pw + 2 * self.FLARE
-            reg = cairo.Region(cairo.RectangleInt(int(cx - wt / 2), 0, int(wt) + 1, int(EDGE + self.ph) + 1))
+            if empty:
+                reg = cairo.Region()
+            else:
+                cx = self.W / 2.0
+                wt = self.pw + 2 * self.FLARE + 16
+                reg = cairo.Region(cairo.RectangleInt(int(cx - wt / 2), 0, int(wt) + 1, int(EDGE + self.ph) + 6))
             self.win.get_window().input_shape_combine_region(reg, 0, 0)
         except Exception:
             pass
 
-    def set_shown(self, v):
+    def hide_instant(self):
+        if not self.shown:
+            return
+        self.shown = False
+        self.token += 1
+        self.win.hide()
+
+    def show_instant(self):
+        if self.shown:
+            return
+        self.shown = True
+        self.token += 1
+        self.update()
+        self.win.show_all()
+        self.measure()
+        self.hw, self.D, self.f, self.ca, self.fa = self.pw / 2, EDGE + self.ph, self.FLARE, 1.0, 1.0
+        self.eb.set_opacity(1.0)
+        self.win.set_opacity(1.0)
+        self.area.queue_draw()
+        self.set_input()
+
+    def set_shown(self, v, instant=False):
         if v == self.shown:
+            return
+        if v and instant:
+            self.show_instant()
             return
         self.shown = v
         self.token += 1
@@ -275,7 +344,7 @@ class Island:
             self.update()
             self.win.set_opacity(0.0)
             self.eb.set_opacity(0.0)
-            self.s, self.nwf, self.ca, self.vel = 0.0, 0.0, 0.0, 0.0
+            self.hw, self.D, self.f, self.ca, self.fa = self.pw / 2 + self.WAVE, 0.0, 0.0, 0.0, 0.0
             self.win.show_all()
             GLib.timeout_add(50, lambda: (self.start_open(tk), False)[1])
         else:
@@ -285,8 +354,12 @@ class Island:
         pw, ph = self.box.get_preferred_width()[1], self.box.get_preferred_height()[1]
         if pw > 20 and (pw != self.pw or ph != self.ph):
             self.pw, self.ph = pw, ph
-            self.W, self.H = pw + 2 * (self.FLARE + 14), EDGE + ph + EXTRA
+            self.W, self.H = pw + 2 * (self.WAVE + self.FLARE + 12), EDGE + ph + EXTRA
             self.area.set_size_request(self.W, self.H)
+            try:
+                open(os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "entropy-island.geom"), "w").write(f"{pw} {ph}")
+            except OSError:
+                pass
 
     def start_open(self, tk):
         if tk != self.token:
@@ -298,24 +371,19 @@ class Island:
         if tk != self.token:
             return
         self.snap = self.snapshot()
+        self.set_input(empty=True)
         self.win.set_opacity(1.0)
         t0 = GLib.get_monotonic_time()
-        prev = [0.0]
 
         def step():
             if tk != self.token:
                 return False
-            u = min(1.0, (GLib.get_monotonic_time() - t0) / 820000.0)
-            s = 1.0 - math.exp(-5.0 * u) * math.cos(10.5 * u)
-            self.vel = (s - prev[0]) / 0.0205 * 0.0166 * 3.0
-            prev[0] = s
-            self.s = s
-            self.nwf = self.smooth(0.30, 0.85, u)
-            self.ca = self.smooth(0.30, 0.72, u)
+            u = min(1.0, (GLib.get_monotonic_time() - t0) / 950000.0)
+            self.hw, self.D, self.f, self.ca, self.fa = self.params(u, True)
             self.area.queue_draw()
             if u >= 1.0:
-                self.vel = 0.0
-                self.s, self.nwf = 1.0, 1.0
+                self.hw, self.D, self.f, self.ca, self.fa = self.pw / 2, EDGE + self.ph, self.FLARE, 1.0, 1.0
+                self.g, self.rip = 1.0, (0.0, 0.0)
                 self.eb.set_opacity(1.0)
                 self.area.queue_draw()
                 self.set_input()
@@ -330,19 +398,16 @@ class Island:
             self.win.hide()
             return
         self.eb.set_opacity(0.0)
-        self.s, self.nwf, self.ca, self.vel = 1.0, 1.0, 1.0, 0.0
+        self.set_input(empty=True)
         t0 = GLib.get_monotonic_time()
 
         def step():
             if tk != self.token:
                 return False
-            h = min(1.0, (GLib.get_monotonic_time() - t0) / 430000.0)
-            self.s = 1.0 - h * h
-            self.vel = -2.5 * h
-            self.nwf = 1.0 - 0.5 * self.smooth(0.2, 0.9, h)
-            self.ca = 1.0 - self.smooth(0.0, 0.55, h)
+            r = min(1.0, (GLib.get_monotonic_time() - t0) / 520000.0)
+            self.hw, self.D, self.f, self.ca, self.fa = self.params(r, False)
             self.area.queue_draw()
-            if h >= 1.0:
+            if r >= 1.0:
                 self.win.hide()
                 return False
             return True
@@ -366,6 +431,8 @@ class App:
                 if gm.x == int(m["x"]) and gm.y == int(m["y"]):
                     self.islands[m["name"]] = Island(disp.get_monitor(i), m["name"])
         self.pending = False
+        self.was_busy = False
+        GLib.timeout_add(110, self.check_busy)
         GLib.timeout_add(1500, self.tick)
         GLib.timeout_add(15000, self.tick_slow)
         threading.Thread(target=self.listen, daemon=True).start()
@@ -396,12 +463,23 @@ class App:
         except Exception as e:
             print("listen:", repr(e), flush=True)
 
+    def check_busy(self):
+        b = panel_open()
+        if b != self.was_busy:
+            self.was_busy = b
+            if b:
+                for isl in self.islands.values():
+                    isl.hide_instant()
+            else:
+                self.tick(instant=True)
+        return True
+
     def tick_slow(self):
         for isl in self.islands.values():
             isl.update()
         return True
 
-    def tick(self):
+    def tick(self, instant=False):
         try:
             mons = json.loads(sh("hyprctl", "monitors", "-j"))
             clients = json.loads(sh("hyprctl", "clients", "-j"))
@@ -415,7 +493,10 @@ class App:
             wsid = m["activeWorkspace"]["id"]
             n = sum(1 for c in clients if c["workspace"]["id"] == wsid and c.get("mapped") and not c.get("hidden"))
             want = (n == 0 or isl.hovering() or bool(os.environ.get("ENTROPY_ISLAND_FORCE"))) and not busy
-            isl.set_shown(want)
+            if busy:
+                isl.hide_instant()
+            else:
+                isl.set_shown(want, instant)
         return True
 
 
