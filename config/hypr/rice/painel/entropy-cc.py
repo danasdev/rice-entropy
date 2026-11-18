@@ -594,7 +594,10 @@ class Panel:
         w, h = max(2.0, ow + (tw - ow) * k), max(2.0, oh + (th - oh) * k)
         pc = max(0.0, min(1.0, p))
         r = orr + (tr - orr) * pc
-        fa = self.morph_rgba[3] * (1.0 - self.smoothstep(0.30, 0.85, pc))
+        a_t = self.morph_rgba[3]
+        fa = a_t * (1.0 - self.smoothstep(0.30, 0.85, pc)) + (0.93 - a_t) * (1.0 - self.smoothstep(0.0, 0.5, pc))
+        if pc < 0.08:
+            fa *= pc / 0.08
         self.rrect(cr, x, y, w, h, r)
         cr.set_source_rgba(self.morph_rgba[0], self.morph_rgba[1], self.morph_rgba[2], fa)
         cr.fill()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Menu de apps Entropy (Super+Space): busca, grade/lista, categorias, calculadora, comando, web e clipboard."""
-import cairo, importlib.util, json, os, re, signal, subprocess, sys, time, unicodedata, urllib.parse
+import cairo, math, importlib.util, json, os, re, signal, subprocess, sys, time, unicodedata, urllib.parse
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
@@ -99,7 +99,23 @@ class Launcher:
 
     snapshot = cc.Panel.snapshot
     on_anim_draw = cc.Panel.on_anim_draw_rect
-    run_anim = cc.Panel.run_anim
+    def run_anim(self, opening, dur, done):
+        t0 = GLib.get_monotonic_time()
+        dur = dur * float(os.environ.get("ENTROPY_ANIM_SLOW", "1")) * 1.25
+
+        def step():
+            r = min(1.0, (GLib.get_monotonic_time() - t0) / (dur * 1e6))
+            if opening:
+                sm = r * r * (3 - 2 * r)
+                self.anim_p = sm + 0.045 * math.sin(math.pi * max(0.0, (r - 0.55) / 0.45))
+            else:
+                self.anim_p = 1.0 - r * r * (3 - 2 * r)
+            self.anim_area.queue_draw()
+            if r >= 1.0:
+                done()
+                return False
+            return True
+        GLib.timeout_add(16, step)
     prepare_morph = cc.Panel.prepare_morph_rect
     morph_target = cc.Panel.morph_target_rect
     rrect = staticmethod(cc.Panel.rrect)
@@ -353,12 +369,12 @@ class Launcher:
                             and l["y"] + l["h"] <= self.mon_y + self.mon_h + 2 and l["y"] < self.mon_y + self.mon_h - 40):
                         dock = l
             if dock:
-                gx, gy = dock["x"] + 27, dock["y"] + dock["h"] - 35
+                gx, gy = dock["x"] + 77, dock["y"] + dock["h"] - 37
                 cx = gx - (self.mon_x + (self.mon_w - W) / 2.0)
                 cy = gy - (self.mon_y + self.mon_h - H)
         except Exception:
             pass
-        return (cx - 20.0, cy - 20.0, 40.0, 40.0, 14.0)
+        return (cx - 23.0, cy - 23.0, 46.0, 46.0, 15.0)
 
     def set_input(self, empty=False):
         try:
