@@ -36,7 +36,7 @@ Cada wallpaper é uma pasta em `~/.local/share/entropy/wallpapers/<nome>/` com u
 {"type": "layers", "layers": [{"file": "fundo.png", "depth": 0.3}, {"file": "frente.png", "depth": 1.0}], "parallax": 0.05}
 ```
 
-**ASCII mosaico com profundidade:** em qualquer imagem, marque "Estilo ASCII 3D" na interface (ou use `templates/ascii-mosaico.frag` com `"channels": ["foto.png", "depth.png"]`). O parallax usa o mapa de profundidade: o que está longe anda menos que o sujeito. `entropy-wall-depth.py foto.png depth.png` gera um mapa simples (brilho + destaque do fundo); para cenas complexas use um mapa melhor (ex.: Depth Anything). Parâmetros em `"params": [altura_da_célula, força_do_parallax, estilo(0 cores / 1 duotone), glifo]`.
+**ASCII em camadas (parallax de verdade):** cada camada é uma imagem RGBA (fundo -> frente) convertida em ASCII com a grade presa a ela. O parallax só desloca as camadas entre si: o sujeito da frente anda mais que o prédio ao fundo, e nada se deforma dentro de cada camada. Marque "Estilo ASCII 3D" numa imagem na interface, ou separe as camadas à mão: `entropy-wall-layers.py foto.png pasta modo` (modos `depth`, `magenta`, `red`) e use `templates/ascii-camadas.frag`. Dá para usar camadas feitas por você (PNG com transparência); `"depths"` define a profundidade de cada uma e `"params": [altura_da_célula, força_do_parallax, 0, glifo]`.
 
 Shaders têm `iResolution`, `iTime`, `iMouse`, `iParallax` (-1..1, suavizado, segue o cursor) e `iChannel0/1`.
 

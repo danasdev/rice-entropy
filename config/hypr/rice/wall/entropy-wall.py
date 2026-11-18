@@ -106,6 +106,7 @@ uniform vec3 iChannelRes0;
 uniform vec3 iChannelRes1;
 uniform vec3 iChannelRes2;
 uniform vec3 iAtlasRes;
+uniform vec4 iP1;              // manifest "depths": profundidade de cada camada (0 = longe, 1 = perto)
 uniform vec4 iP0;              // manifest "params": até 4 números livres
 out vec4 outColor;
 """
@@ -402,6 +403,8 @@ class Surface:
             glUniform1i(self.uni(prog, "iAtlas"), 3)
             pr = (list(self.manifest.get("params", [])) + [0, 0, 0, 0])[:4]
             glUniform4f(self.uni(prog, "iP0"), *[float(v) for v in pr])
+            dp = (list(self.manifest.get("depths", [])) + [0, 0, 0, 0])[:4]
+            glUniform4f(self.uni(prog, "iP1"), *[float(v) for v in dp])
             glDrawArrays(GL_TRIANGLES, 0, 3)
             self.maybe_preview(W, H)
         else:
