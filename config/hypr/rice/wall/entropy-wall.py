@@ -484,9 +484,7 @@ class Engine:
             for m in mons:
                 if gm.x == int(m["x"]) and gm.y == int(m["y"]):
                     self.surfaces.append(Surface(self, disp.get_monitor(i), m))
-        self.read_state()
-        for s in self.surfaces:
-            s.show()
+        self.read_state()   # só mostra as janelas se houver wallpaper animado ligado (senão ficaria uma tela preta)
         GLib.timeout_add(16, self.tick)
 
     def drops_for(self, surf, W, H):

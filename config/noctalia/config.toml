@@ -159,8 +159,8 @@ box_height = 120.0
 clock_style = "digital"
 format = "{:%H:%M}"
 center_text = true
-color = "surface"
-shadow = false
+color = "on_surface"
+shadow = true
 background = false
 
 [desktop_widgets.widget.hd_date]
@@ -174,8 +174,8 @@ box_height = 30.0
 clock_style = "digital"
 format = "{:%A, %d de %B}"
 center_text = true
-color = "surface_variant"
-shadow = false
+color = "on_surface_variant"
+shadow = true
 background = false
 
 [desktop_widgets.widget.hd_weather]
@@ -203,8 +203,8 @@ box_height = 120.0
 hide_when_no_media = true
 layout = "horizontal"
 background = false
-shadow = true
-color = "on_surface"
+shadow = false
+color = "surface"
 
 [desktop_widgets.widget.hd_cpu]
 type = "sysmon"
